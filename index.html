@@ -812,16 +812,16 @@
         </div>
     </div>
 
-    <!-- 2. Manual QR Code Manager Modal (Admin Controlled) -->
+    <!-- 2. Manual QR Code Manager Modal (Admin Controlled - Separate Table & Room) -->
     <div id="qr-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-[#1b1b1f] text-white border border-white/10 rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-slide-in">
             <div class="p-4 sm:p-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 bg-[#1b1b1f] no-print">
                 <div>
                     <h3 class="font-black text-base sm:text-lg text-white">إدارة رموز QR اليدوية • Plus Ninety Lounge</h3>
-                    <p class="text-xs text-slate-400">يتم إنشاء وحذف رموز QR يدوياً بواسطة الأدمن فقط</p>
+                    <p class="text-xs text-slate-400">فصل كامل بين QR الطاولات و QR الغرف (Room) — يُضاف يدوياً بواسطة الأدمن</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <label class="text-xs font-bold text-slate-300">الغرفة / القاعة:</label>
+                    <label class="text-xs font-bold text-slate-300">القناة / القسم:</label>
                     <select id="qr-room-select" onchange="onQRRoomChange()" class="bg-[#121214] border border-white/15 rounded-xl px-2.5 py-1.5 font-bold text-xs sm:text-sm text-[#f4ebd9] focus:outline-none focus:border-[#1877f2]">
                         <option value="plus-ninety-lounge">القاعة الرئيسية (Plus 90)</option>
                         <option value="room-1">غرفة 1 (Room 1)</option>
@@ -859,13 +859,20 @@
 
             <!-- Manual QR Creation Bar -->
             <div class="p-4 bg-[#16161a] border-b border-white/10 flex flex-wrap items-end gap-3 no-print">
-                <div class="flex-1 min-w-[180px]">
-                    <label for="manual-qr-label-input" class="block text-xs font-bold text-slate-300 mb-1">رقم أو اسم الطاولة / الغرفة</label>
-                    <input id="manual-qr-label-input" type="text" placeholder="مثال: 1 أو VIP-2 أو بلياردو 1" onkeydown="if(event.key==='Enter') addManualQRCode()" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:border-[#1877f2]">
+                <div class="min-w-[140px]">
+                    <label for="manual-qr-kind-select" class="block text-xs font-bold text-slate-300 mb-1">النوع</label>
+                    <select id="manual-qr-kind-select" onchange="onManualQRKindChange()" class="w-full bg-[#121214] text-[#f4ebd9] border border-white/15 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:border-[#1877f2]">
+                        <option value="table">طاولة (Table)</option>
+                        <option value="room">غرفة (Room)</option>
+                    </select>
                 </div>
-                <div class="flex-[1.4] min-w-[220px]">
-                    <label for="manual-qr-url-input" class="block text-xs font-bold text-slate-300 mb-1">رابط مخصص (اختياري - يُنشأ تلقائياً إذا تُرك فارغاً)</label>
-                    <input id="manual-qr-url-input" type="text" dir="ltr" placeholder="https://..." class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs font-mono focus:outline-none focus:border-[#1877f2]">
+                <div class="flex-1 min-w-[180px]">
+                    <label id="manual-qr-label-title" for="manual-qr-label-input" class="block text-xs font-bold text-slate-300 mb-1">رقم أو اسم الطاولة</label>
+                    <input id="manual-qr-label-input" type="text" placeholder="مثال: 1 أو VIP-2" onkeydown="if(event.key==='Enter') addManualQRCode()" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:border-[#1877f2]">
+                </div>
+                <div class="flex-[1.3] min-w-[210px]">
+                    <label for="manual-qr-url-input" class="block text-xs font-bold text-slate-300 mb-1">رابط مخصص (اختياري)</label>
+                    <input id="manual-qr-url-input" type="text" dir="ltr" placeholder="يُنشأ تلقائياً حسب النوع..." class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs font-mono focus:outline-none focus:border-[#1877f2]">
                 </div>
                 <button onclick="addManualQRCode()" type="button" class="px-5 py-2.5 rounded-xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold text-xs sm:text-sm transition flex items-center gap-2 shrink-0">
                     <i class="fa-solid fa-plus"></i>
@@ -1116,7 +1123,9 @@
         const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
 
         const rawTable = urlParams.get('table') || hashParams.get('table');
-        const extractedTable = rawTable && !isNaN(parseInt(rawTable, 10)) ? parseInt(rawTable, 10) : null;
+        const rawUnitType = (urlParams.get('unit') || hashParams.get('unit') || '').toLowerCase();
+        const extractedUnitType = rawUnitType === 'room' ? 'room' : 'table';
+        const extractedTable = rawTable ? String(rawTable).trim() : null;
 
         const roleParam = (urlParams.get('role') || urlParams.get('mode') || '').toLowerCase();
         const isStaffUrlRequested = roleParam === 'staff' || roleParam === 'waiter' || roleParam === 'admin';
@@ -1187,6 +1196,7 @@
             role: isStaffUrlRequested ? 'staff' : 'customer',
             staffLevel: 'waiter',
             customerTable: extractedTable,
+            customerUnitType: extractedUnitType,
             roomId: defaultRoomId,
             brokerUrl: localStorage.getItem('nidaa_broker') || 'wss://broker.emqx.io:8084/mqtt',
             baseTopic: localStorage.getItem('nidaa_topic') || `nidaa/restaurant/${defaultRoomId}`,
@@ -1511,7 +1521,7 @@
                 } else {
                     tbody.innerHTML = state.callHistory.map(item => `
                         <tr>
-                            <td class="py-2.5 px-3 font-black text-[#f4ebd9]">طاولة ${item.table}</td>
+                            <td class="py-2.5 px-3 font-black text-[#f4ebd9]">${escapeHTML(formatUnitDisplay(item.table, item.unitType || 'table', 'طاولة'))}</td>
                             <td class="py-2.5 px-3 font-bold text-white">${escapeHTML(cs.services[item.type]?.title || REQUEST_TYPES[item.type]?.label || item.type)}</td>
                             <td class="py-2.5 px-3 text-slate-300">${item.note ? escapeHTML(item.note) : '-'}</td>
                             <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full bg-white/10 text-[#93c5fd] font-bold">${escapeHTML(item.status)}</span></td>
@@ -2137,12 +2147,17 @@
                 }
             }
 
+            const callKey = String(data.table);
+            const unitType = data.unitType === 'room' ? 'room' : 'table';
+            const unitBadgeText = formatUnitDisplay(data.table, unitType, 'طاولة');
+
             if (data.action === 'NEW_CALL') {
-                const isNew = !state.activeCalls[data.table] || state.activeCalls[data.table].id !== data.id;
+                const isNew = !state.activeCalls[callKey] || state.activeCalls[callKey].id !== data.id;
                 const callType = data.type || 'call_waiter';
-                state.activeCalls[data.table] = {
+                state.activeCalls[callKey] = {
                     id: data.id,
-                    table: Number(data.table),
+                    table: callKey,
+                    unitType,
                     type: callType,
                     note: data.note || '',
                     timestamp: data.timestamp || Date.now(),
@@ -2153,7 +2168,8 @@
                     state.serviceCounts[callType] = (state.serviceCounts[callType] || 0) + 1;
                     state.callHistory.unshift({
                         id: data.id,
-                        table: Number(data.table),
+                        table: callKey,
+                        unitType,
                         type: callType,
                         note: data.note || '',
                         status: 'بانتظار النادل',
@@ -2165,37 +2181,37 @@
                 if (isNew && state.role === 'staff') {
                     playNotificationChime('new_call');
                     const reqLabel = REQUEST_TYPES[data.type]?.label || 'طلب خدمة';
-                    const toastMsg = `نداء جديد من طاولة ${data.table}: ${reqLabel}`;
+                    const toastMsg = `نداء جديد من ${unitBadgeText}: ${reqLabel}`;
                     showToast(toastMsg, 'amber');
                     const bodyText = data.note ? `${reqLabel} — ${data.note}` : `${reqLabel} • ${state.roomId}`;
-                    triggerMobileScreenNotification(`طاولة ${data.table} • ${state.branding?.name || 'Plus Ninety Lounge'}`, bodyText, `call-${data.table}`);
+                    triggerMobileScreenNotification(`${unitBadgeText} • ${state.branding?.name || 'Plus Ninety Lounge'}`, bodyText, `call-${callKey}`);
                 }
             } else if (data.action === 'ACK_CALL') {
-                if (state.activeCalls[data.table]) {
-                    state.activeCalls[data.table].status = 'acknowledged';
-                    const histItem = state.callHistory.find(h => h.table === Number(data.table) && h.status === 'بانتظار النادل');
+                if (state.activeCalls[callKey]) {
+                    state.activeCalls[callKey].status = 'acknowledged';
+                    const histItem = state.callHistory.find(h => String(h.table) === callKey && h.status === 'بانتظار النادل');
                     if (histItem) histItem.status = 'جاري التنفيذ';
                     saveDashboardState();
-                    if (state.role === 'customer' && Number(data.table) === state.customerTable) {
+                    if (state.role === 'customer' && callKey === String(state.customerTable)) {
                         playNotificationChime('ack');
                         showToast('النادل استلم طلبك وهو في الطريق إليك الآن!', 'emerald');
-                        triggerMobileScreenNotification(state.branding?.name || 'Plus Ninety Lounge', 'النادل استلم طلبك وهو في الطريق إليك الآن!', `ack-${data.table}`);
+                        triggerMobileScreenNotification(state.branding?.name || 'Plus Ninety Lounge', 'النادل استلم طلبك وهو في الطريق إليك الآن!', `ack-${callKey}`);
                     }
                 }
             } else if (data.action === 'COMPLETE_CALL') {
-                if (state.activeCalls[data.table]) {
-                    delete state.activeCalls[data.table];
+                if (state.activeCalls[callKey]) {
+                    delete state.activeCalls[callKey];
                     state.completedCount++;
-                    const histItem = state.callHistory.find(h => h.table === Number(data.table) && h.status !== 'تم التنفيذ');
+                    const histItem = state.callHistory.find(h => String(h.table) === callKey && h.status !== 'تم التنفيذ');
                     if (histItem) histItem.status = 'تم التنفيذ';
                     saveDashboardState();
-                    if (state.role === 'customer' && Number(data.table) === state.customerTable) {
+                    if (state.role === 'customer' && callKey === String(state.customerTable)) {
                         showToast('تم تنفيذ طلبك بنجاح، نتمنى لك وقتاً ممتعاً!', 'emerald');
                     }
                 }
             } else if (data.action === 'CANCEL_CALL') {
-                if (state.activeCalls[data.table]) {
-                    delete state.activeCalls[data.table];
+                if (state.activeCalls[callKey]) {
+                    delete state.activeCalls[callKey];
                     saveDashboardState();
                 }
             }
@@ -2210,26 +2226,46 @@
             }
         }
 
-        function simulateScanTable(tableNum) {
-            state.customerTable = tableNum;
-            const newUrl = `${window.location.pathname}?table=${tableNum}&room=${encodeURIComponent(state.roomId)}`;
+        function formatUnitDisplay(unitId, unitType = 'table', customPrefix = null) {
+            const cleanId = String(unitId ?? '').trim();
+            if (!cleanId) return '--';
+            if (unitType === 'room') {
+                return /^room\b|^غرفة\b/i.test(cleanId) ? cleanId : `Room ${cleanId}`;
+            }
+            const prefix = customPrefix || state.customerScreen?.tablePrefix || 'طاولة رقم';
+            return /^طاولة\b|^table\b/i.test(cleanId) ? cleanId : `${prefix} ${cleanId}`;
+        }
+
+        function simulateScanTable(tableNum, unitType = 'table') {
+            state.customerTable = String(tableNum);
+            state.customerUnitType = unitType === 'room' ? 'room' : 'table';
+            const unitQuery = state.customerUnitType === 'room' ? '&unit=room' : '';
+            const newUrl = `${window.location.pathname}?table=${encodeURIComponent(state.customerTable)}${unitQuery}&room=${encodeURIComponent(state.roomId)}`;
             window.history.replaceState({}, '', newUrl);
             renderCustomerTableState();
             renderCustomerActiveStatus();
-            showToast(`تم مسح QR طاولة رقم ${tableNum} (${state.roomId})`, 'emerald');
+            showToast(`تم مسح QR ${formatUnitDisplay(state.customerTable, state.customerUnitType)} (${state.roomId})`, 'emerald');
         }
 
         function renderCustomerTableState() {
             const noQrScreen = document.getElementById('customer-no-qr-screen');
             const tableInterface = document.getElementById('customer-table-interface');
+            const lockedPrefixEl = document.getElementById('locked-table-prefix');
             const lockedNumEl = document.getElementById('locked-table-number');
 
             if (!noQrScreen || !tableInterface) return;
 
-            if (state.customerTable && state.customerTable > 0) {
+            if (state.customerTable && String(state.customerTable).trim() !== '') {
                 noQrScreen.classList.add('hidden');
                 tableInterface.classList.remove('hidden');
-                if (lockedNumEl) lockedNumEl.textContent = state.customerTable;
+                const cleanVal = String(state.customerTable).trim();
+                if (state.customerUnitType === 'room') {
+                    if (lockedPrefixEl) lockedPrefixEl.textContent = /^room\b|^غرفة\b/i.test(cleanVal) ? '' : 'Room';
+                    if (lockedNumEl) lockedNumEl.textContent = cleanVal;
+                } else {
+                    if (lockedPrefixEl) lockedPrefixEl.textContent = /^طاولة\b|^table\b/i.test(cleanVal) ? '' : (state.customerScreen?.tablePrefix || 'طاولة رقم');
+                    if (lockedNumEl) lockedNumEl.textContent = cleanVal;
+                }
             } else {
                 tableInterface.classList.add('hidden');
                 noQrScreen.classList.remove('hidden');
@@ -2244,17 +2280,19 @@
 
             const callId = 'call_' + Date.now();
             state.customerCurrentCallId = callId;
+            const unitType = state.customerUnitType === 'room' ? 'room' : 'table';
 
-            publishEvent(`tables/${state.customerTable}`, {
+            publishEvent(`tables/${encodeURIComponent(state.customerTable)}`, {
                 action: 'NEW_CALL',
                 id: callId,
-                table: state.customerTable,
+                table: String(state.customerTable),
+                unitType,
                 type,
                 note: finalNote,
                 timestamp: Date.now()
             });
 
-            showToast(`تم إرسال طلبك (${REQUEST_TYPES[type]?.label || 'خدمة'}) لطاولة ${state.customerTable}`, 'amber');
+            showToast(`تم إرسال طلبك (${REQUEST_TYPES[type]?.label || 'خدمة'}) لـ ${formatUnitDisplay(state.customerTable, unitType, 'طاولة')}`, 'amber');
         }
 
         function sendQuickShortcut(itemText) {
@@ -2318,11 +2356,15 @@
         }
 
         function acknowledgeCall(tableNum) {
-            publishEvent(`tables/${tableNum}`, { action: 'ACK_CALL', table: Number(tableNum) });
+            const key = String(tableNum);
+            const unitType = state.activeCalls[key]?.unitType || 'table';
+            publishEvent(`tables/${encodeURIComponent(key)}`, { action: 'ACK_CALL', table: key, unitType });
         }
 
         function completeCall(tableNum) {
-            publishEvent(`tables/${tableNum}`, { action: 'COMPLETE_CALL', table: Number(tableNum) });
+            const key = String(tableNum);
+            const unitType = state.activeCalls[key]?.unitType || 'table';
+            publishEvent(`tables/${encodeURIComponent(key)}`, { action: 'COMPLETE_CALL', table: key, unitType });
         }
 
         function simulateIncomingCall() {
@@ -2372,13 +2414,15 @@
             grid.innerHTML = calls.map(call => {
                 const reqInfo = REQUEST_TYPES[call.type] || REQUEST_TYPES.call_waiter;
                 const isAck = call.status === 'acknowledged';
+                const unitLabel = formatUnitDisplay(call.table, call.unitType || 'table', 'طاولة');
+                const safeKeyAttr = escapeHTML(String(call.table)).replace(/'/g, "\'");
 
                 return `
                     <div class="bg-[#1b1b1f] rounded-3xl p-5 shadow-sm border-2 ${isAck ? 'border-[#1877f2]' : 'border-white/15'} flex flex-col justify-between gap-4 animate-slide-in">
                         <div>
                             <div class="flex items-center justify-between gap-2 mb-3">
                                 <span class="text-xl font-black text-slate-950 plus90-cream px-3.5 py-1 rounded-2xl">
-                                    طاولة ${call.table}
+                                    ${escapeHTML(unitLabel)}
                                 </span>
                                 <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-xl bg-[#121214] text-[#f4ebd9] border border-white/10">
                                     <i class="fa-regular fa-clock ml-1"></i>${formatElapsed(call.timestamp)}
@@ -2399,7 +2443,7 @@
 
                         <div class="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
                             ${!isAck ? `
-                                <button onclick="acknowledgeCall(${call.table})" class="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition flex items-center justify-center gap-1.5">
+                                <button onclick="acknowledgeCall('${safeKeyAttr}')" class="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition flex items-center justify-center gap-1.5">
                                     <i class="fa-solid fa-hand-point-up"></i>
                                     <span>تم الاستلام</span>
                                 </button>
@@ -2409,7 +2453,7 @@
                                     <span>في الطريق</span>
                                 </div>
                             `}
-                            <button onclick="completeCall(${call.table})" class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center justify-center gap-1.5">
+                            <button onclick="completeCall('${safeKeyAttr}')" class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center justify-center gap-1.5">
                                 <i class="fa-solid fa-check"></i>
                                 <span>تم التنفيذ</span>
                             </button>
@@ -2419,7 +2463,7 @@
             }).join('');
         }
 
-        const MANUAL_QR_STORAGE_KEY = 'plus90_manual_qr_codes_v1';
+        const MANUAL_QR_STORAGE_KEY = 'plus90_manual_qr_codes_v2';
 
         function loadManualQRCodes() {
             try {
@@ -2437,11 +2481,37 @@
             } catch (e) {}
         }
 
-        function buildDefaultTableUrl(label, roomId) {
+        function onManualQRKindChange() {
+            const kindSelect = document.getElementById('manual-qr-kind-select');
+            const titleEl = document.getElementById('manual-qr-label-title');
+            const inputEl = document.getElementById('manual-qr-label-input');
+            if (!kindSelect || !titleEl || !inputEl) return;
+
+            if (kindSelect.value === 'room') {
+                titleEl.textContent = 'رقم أو اسم الغرفة (بدون كلمة طاولة)';
+                inputEl.placeholder = 'مثال: Room 1 أو 1 أو VIP Room';
+            } else {
+                titleEl.textContent = 'رقم أو اسم الطاولة';
+                inputEl.placeholder = 'مثال: 1 أو VIP-2';
+            }
+        }
+
+        function buildManualQRUrl(label, kind, roomId) {
             const baseUrl = window.location.origin + window.location.pathname;
-            const numericMatch = String(label || '').trim().match(/\d+/);
-            const tableParam = numericMatch ? numericMatch[0] : encodeURIComponent(String(label || '').trim());
-            return `${baseUrl}?table=${tableParam}&room=${encodeURIComponent(roomId)}`;
+            const cleanLabel = String(label || '').trim();
+            if (kind === 'room') {
+                return `${baseUrl}?table=${encodeURIComponent(cleanLabel)}&unit=room&room=${encodeURIComponent(roomId)}`;
+            }
+            const numericMatch = cleanLabel.match(/^\d+$/) ? cleanLabel : encodeURIComponent(cleanLabel);
+            return `${baseUrl}?table=${numericMatch}&room=${encodeURIComponent(roomId)}`;
+        }
+
+        function formatManualQRCardTitle(label, kind) {
+            const clean = String(label || '').trim();
+            if (kind === 'room') {
+                return /^room\b|^غرفة\b/i.test(clean) ? clean : `Room ${clean}`;
+            }
+            return /^طاولة\b|^table\b/i.test(clean) ? clean : `طاولة رقم ${clean}`;
         }
 
         function openQRModal() {
@@ -2458,6 +2528,11 @@
                     }
                     roomSelect.value = state.roomId;
                 }
+                const kindSelect = document.getElementById('manual-qr-kind-select');
+                if (kindSelect) {
+                    kindSelect.value = state.roomId.startsWith('room-') ? 'room' : 'table';
+                    onManualQRKindChange();
+                }
                 const labelInput = document.getElementById('manual-qr-label-input');
                 const urlInput = document.getElementById('manual-qr-url-input');
                 if (labelInput) labelInput.value = '';
@@ -2473,6 +2548,12 @@
             localStorage.setItem('nidaa_room_id', state.roomId);
             state.baseTopic = `nidaa/restaurant/${state.roomId}`;
             localStorage.setItem('nidaa_topic', state.baseTopic);
+
+            const kindSelect = document.getElementById('manual-qr-kind-select');
+            if (kindSelect) {
+                kindSelect.value = state.roomId.startsWith('room-') ? 'room' : 'table';
+                onManualQRKindChange();
+            }
 
             const channelEl = document.getElementById('stat-channel');
             if (channelEl) channelEl.textContent = state.roomId;
@@ -2498,24 +2579,27 @@
 
         function addManualQRCode() {
             requireAdminPin(() => {
+                const kindSelect = document.getElementById('manual-qr-kind-select');
                 const labelInput = document.getElementById('manual-qr-label-input');
                 const urlInput = document.getElementById('manual-qr-url-input');
                 const roomSelect = document.getElementById('qr-room-select');
 
+                const kind = kindSelect && kindSelect.value === 'room' ? 'room' : 'table';
                 const label = (labelInput ? labelInput.value : '').trim();
                 if (!label) {
-                    showToast('يرجى كتابة رقم أو اسم الطاولة أولاً', 'slate');
+                    showToast(kind === 'room' ? 'يرجى كتابة رقم أو اسم الغرفة أولاً' : 'يرجى كتابة رقم أو اسم الطاولة أولاً', 'slate');
                     if (labelInput) labelInput.focus();
                     return;
                 }
 
                 const roomId = roomSelect ? roomSelect.value : state.roomId;
                 const customUrl = (urlInput ? urlInput.value : '').trim();
-                const targetUrl = customUrl || buildDefaultTableUrl(label, roomId);
+                const targetUrl = customUrl || buildManualQRUrl(label, kind, roomId);
 
                 const list = loadManualQRCodes();
                 list.push({
                     id: 'qr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                    kind,
                     label,
                     roomId,
                     url: targetUrl,
@@ -2526,7 +2610,7 @@
                 if (labelInput) labelInput.value = '';
                 if (urlInput) urlInput.value = '';
                 generateQRCards();
-                showToast(`تم إضافة QR يدوي لـ "${label}"`, 'emerald');
+                showToast(`تم إضافة QR يدوي (${formatManualQRCardTitle(label, kind)})`, 'emerald');
             });
         }
 
@@ -2568,7 +2652,7 @@
                             <i class="fa-solid fa-qrcode"></i>
                         </div>
                         <h4 class="font-black text-white text-base mb-1">لا توجد رموز QR مضافة يدوياً هنا</h4>
-                        <p class="text-xs text-slate-400">استخدم الحقول بالأعلى لإضافة طاولة أو غرفة جديدة يدوياً ثم اطبع البطاقات.</p>
+                        <p class="text-xs text-slate-400">اختر النوع (طاولة أو غرفة Room) بالأعلى وأضفها يدوياً ثم اطبع البطاقات.</p>
                     </div>
                 `;
                 return;
@@ -2578,15 +2662,20 @@
 
             roomQRs.forEach((item, idx) => {
                 const boxId = `qr-box-${idx}-${item.id}`;
+                const isRoom = item.kind === 'room';
+                const cardTitle = formatManualQRCardTitle(item.label, item.kind);
+                const topBadge = isRoom ? 'ROOM • غرفة مستقلة' : roomLabel;
+                const previewText = isRoom ? 'معاينة شاشة الغرفة' : 'معاينة شاشة الطاولة';
+
                 const card = document.createElement('div');
                 card.className = 'bg-[#1b1b1f] text-white rounded-2xl p-5 border border-white/10 flex flex-col items-center text-center shadow-sm';
                 card.innerHTML = `
-                    <span class="text-xs font-extrabold text-slate-950 plus90-cream px-3 py-1 rounded-full mb-1.5">${escapeHTML(roomLabel)}</span>
-                    <h4 class="text-xl font-black text-white mb-3">${escapeHTML(item.label)}</h4>
+                    <span class="text-xs font-extrabold ${isRoom ? 'bg-[#1877f2] text-white' : 'text-slate-950 plus90-cream'} px-3 py-1 rounded-full mb-1.5">${escapeHTML(topBadge)}</span>
+                    <h4 class="text-xl font-black text-white mb-3">${escapeHTML(cardTitle)}</h4>
                     <div id="${boxId}" class="p-2.5 bg-[#f4ebd9] rounded-xl border border-white/15 mb-3"></div>
                     <div class="no-print flex items-center gap-3 text-xs font-bold mt-1">
                         <a href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer" class="text-[#60a5fa] hover:underline">
-                            معاينة <i class="fa-solid fa-arrow-up-right-from-square mr-0.5"></i>
+                            ${previewText} <i class="fa-solid fa-arrow-up-right-from-square mr-0.5"></i>
                         </a>
                         <button type="button" onclick="deleteManualQRCode('${escapeHTML(item.id)}')" class="text-rose-400 hover:text-rose-300 transition">
                             <i class="fa-solid fa-trash ml-0.5"></i> حذف
