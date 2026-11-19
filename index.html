@@ -812,13 +812,13 @@
         </div>
     </div>
 
-    <!-- 2. QR Code Generator Modal -->
+    <!-- 2. Manual QR Code Manager Modal (Admin Controlled) -->
     <div id="qr-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-[#1b1b1f] text-white border border-white/10 rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-slide-in">
             <div class="p-4 sm:p-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 bg-[#1b1b1f] no-print">
                 <div>
-                    <h3 class="font-black text-base sm:text-lg text-white">مولد رموز QR • Plus Ninety Lounge</h3>
-                    <p class="text-xs text-slate-400">كل رمز يفتح شاشة العميل مثبتة على الطاولة والغرفة مباشرة</p>
+                    <h3 class="font-black text-base sm:text-lg text-white">إدارة رموز QR اليدوية • Plus Ninety Lounge</h3>
+                    <p class="text-xs text-slate-400">يتم إنشاء وحذف رموز QR يدوياً بواسطة الأدمن فقط</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <label class="text-xs font-bold text-slate-300">الغرفة / القاعة:</label>
@@ -845,16 +845,34 @@
                         <option value="room-19">غرفة 19 (Room 19)</option>
                         <option value="room-20">غرفة 20 (Room 20)</option>
                     </select>
-                    <label class="text-xs font-bold text-slate-300">عدد الطاولات:</label>
-                    <input id="qr-table-count" type="number" min="1" max="100" value="27" onchange="generateQRCards()" class="w-16 bg-[#121214] border border-white/15 rounded-xl px-2.5 py-1.5 text-center font-bold text-sm text-white">
                     <button onclick="window.print()" class="px-4 py-2 rounded-xl plus90-cream hover:brightness-95 font-extrabold text-xs transition flex items-center gap-1.5">
                         <i class="fa-solid fa-print"></i> طباعة البطاقات
+                    </button>
+                    <button onclick="clearAllManualQRCodes()" class="px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-extrabold text-xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-trash"></i> مسح الكل
                     </button>
                     <button onclick="closeQRModal()" class="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 flex items-center justify-center">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
             </div>
+
+            <!-- Manual QR Creation Bar -->
+            <div class="p-4 bg-[#16161a] border-b border-white/10 flex flex-wrap items-end gap-3 no-print">
+                <div class="flex-1 min-w-[180px]">
+                    <label for="manual-qr-label-input" class="block text-xs font-bold text-slate-300 mb-1">رقم أو اسم الطاولة / الغرفة</label>
+                    <input id="manual-qr-label-input" type="text" placeholder="مثال: 1 أو VIP-2 أو بلياردو 1" onkeydown="if(event.key==='Enter') addManualQRCode()" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:border-[#1877f2]">
+                </div>
+                <div class="flex-[1.4] min-w-[220px]">
+                    <label for="manual-qr-url-input" class="block text-xs font-bold text-slate-300 mb-1">رابط مخصص (اختياري - يُنشأ تلقائياً إذا تُرك فارغاً)</label>
+                    <input id="manual-qr-url-input" type="text" dir="ltr" placeholder="https://..." class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs font-mono focus:outline-none focus:border-[#1877f2]">
+                </div>
+                <button onclick="addManualQRCode()" type="button" class="px-5 py-2.5 rounded-xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold text-xs sm:text-sm transition flex items-center gap-2 shrink-0">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>إضافة QR يدوي</span>
+                </button>
+            </div>
+
             <div id="qr-cards-container" class="p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 bg-[#121214]"></div>
         </div>
     </div>
@@ -2401,20 +2419,51 @@
             }).join('');
         }
 
-        function openQRModal() {
-            document.getElementById('qr-modal').classList.remove('hidden');
-            const roomSelect = document.getElementById('qr-room-select');
-            if (roomSelect) {
-                const exists = AVAILABLE_ROOMS.some(r => r.id === state.roomId);
-                if (!exists) {
-                    const opt = document.createElement('option');
-                    opt.value = state.roomId;
-                    opt.textContent = state.roomId;
-                    roomSelect.appendChild(opt);
-                }
-                roomSelect.value = state.roomId;
+        const MANUAL_QR_STORAGE_KEY = 'plus90_manual_qr_codes_v1';
+
+        function loadManualQRCodes() {
+            try {
+                const raw = localStorage.getItem(MANUAL_QR_STORAGE_KEY);
+                const parsed = JSON.parse(raw || '[]');
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
             }
-            generateQRCards();
+        }
+
+        function saveManualQRCodes(list) {
+            try {
+                localStorage.setItem(MANUAL_QR_STORAGE_KEY, JSON.stringify(list));
+            } catch (e) {}
+        }
+
+        function buildDefaultTableUrl(label, roomId) {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const numericMatch = String(label || '').trim().match(/\d+/);
+            const tableParam = numericMatch ? numericMatch[0] : encodeURIComponent(String(label || '').trim());
+            return `${baseUrl}?table=${tableParam}&room=${encodeURIComponent(roomId)}`;
+        }
+
+        function openQRModal() {
+            requireAdminPin(() => {
+                document.getElementById('qr-modal').classList.remove('hidden');
+                const roomSelect = document.getElementById('qr-room-select');
+                if (roomSelect) {
+                    const exists = AVAILABLE_ROOMS.some(r => r.id === state.roomId);
+                    if (!exists) {
+                        const opt = document.createElement('option');
+                        opt.value = state.roomId;
+                        opt.textContent = state.roomId;
+                        roomSelect.appendChild(opt);
+                    }
+                    roomSelect.value = state.roomId;
+                }
+                const labelInput = document.getElementById('manual-qr-label-input');
+                const urlInput = document.getElementById('manual-qr-url-input');
+                if (labelInput) labelInput.value = '';
+                if (urlInput) urlInput.value = '';
+                generateQRCards();
+            });
         }
 
         function onQRRoomChange() {
@@ -2447,40 +2496,116 @@
             document.getElementById('qr-modal').classList.add('hidden');
         }
 
+        function addManualQRCode() {
+            requireAdminPin(() => {
+                const labelInput = document.getElementById('manual-qr-label-input');
+                const urlInput = document.getElementById('manual-qr-url-input');
+                const roomSelect = document.getElementById('qr-room-select');
+
+                const label = (labelInput ? labelInput.value : '').trim();
+                if (!label) {
+                    showToast('يرجى كتابة رقم أو اسم الطاولة أولاً', 'slate');
+                    if (labelInput) labelInput.focus();
+                    return;
+                }
+
+                const roomId = roomSelect ? roomSelect.value : state.roomId;
+                const customUrl = (urlInput ? urlInput.value : '').trim();
+                const targetUrl = customUrl || buildDefaultTableUrl(label, roomId);
+
+                const list = loadManualQRCodes();
+                list.push({
+                    id: 'qr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                    label,
+                    roomId,
+                    url: targetUrl,
+                    createdAt: Date.now()
+                });
+                saveManualQRCodes(list);
+
+                if (labelInput) labelInput.value = '';
+                if (urlInput) urlInput.value = '';
+                generateQRCards();
+                showToast(`تم إضافة QR يدوي لـ "${label}"`, 'emerald');
+            });
+        }
+
+        function deleteManualQRCode(qrId) {
+            requireAdminPin(() => {
+                const list = loadManualQRCodes().filter(item => item.id !== qrId);
+                saveManualQRCodes(list);
+                generateQRCards();
+                showToast('تم حذف رمز QR', 'amber');
+            });
+        }
+
+        function clearAllManualQRCodes() {
+            requireAdminPin(() => {
+                const roomSelect = document.getElementById('qr-room-select');
+                const selectedRoomId = roomSelect ? roomSelect.value : state.roomId;
+                const remaining = loadManualQRCodes().filter(item => item.roomId !== selectedRoomId);
+                saveManualQRCodes(remaining);
+                generateQRCards();
+                showToast('تم مسح جميع رموز QR لهذه الغرفة/القاعة', 'amber');
+            });
+        }
+
         function generateQRCards() {
-            const count = Math.min(100, Math.max(1, parseInt(document.getElementById('qr-table-count').value || '27', 10)));
             const roomSelect = document.getElementById('qr-room-select');
             const selectedRoomId = roomSelect ? roomSelect.value : state.roomId;
             const roomLabel = AVAILABLE_ROOMS.find(r => r.id === selectedRoomId)?.name || selectedRoomId;
             const container = document.getElementById('qr-cards-container');
+            if (!container) return;
             container.innerHTML = '';
 
-            const baseUrl = window.location.origin + window.location.pathname;
+            const roomQRs = loadManualQRCodes().filter(item => item.roomId === selectedRoomId);
 
-            for (let i = 1; i <= count; i++) {
-                const tableUrl = `${baseUrl}?table=${i}&room=${encodeURIComponent(selectedRoomId)}`;
+            if (roomQRs.length === 0) {
+                container.className = 'p-8 overflow-y-auto bg-[#121214] flex items-center justify-center';
+                container.innerHTML = `
+                    <div class="bg-[#1b1b1f] border border-white/10 rounded-3xl p-8 text-center max-w-md w-full">
+                        <div class="w-14 h-14 rounded-2xl bg-white/5 text-[#60a5fa] flex items-center justify-center text-2xl mx-auto mb-3">
+                            <i class="fa-solid fa-qrcode"></i>
+                        </div>
+                        <h4 class="font-black text-white text-base mb-1">لا توجد رموز QR مضافة يدوياً هنا</h4>
+                        <p class="text-xs text-slate-400">استخدم الحقول بالأعلى لإضافة طاولة أو غرفة جديدة يدوياً ثم اطبع البطاقات.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.className = 'p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 bg-[#121214]';
+
+            roomQRs.forEach((item, idx) => {
+                const boxId = `qr-box-${idx}-${item.id}`;
                 const card = document.createElement('div');
                 card.className = 'bg-[#1b1b1f] text-white rounded-2xl p-5 border border-white/10 flex flex-col items-center text-center shadow-sm';
                 card.innerHTML = `
                     <span class="text-xs font-extrabold text-slate-950 plus90-cream px-3 py-1 rounded-full mb-1.5">${escapeHTML(roomLabel)}</span>
-                    <h4 class="text-xl font-black text-white mb-3">طاولة رقم ${i}</h4>
-                    <div id="qr-box-${i}" class="p-2.5 bg-[#f4ebd9] rounded-xl border border-white/15 mb-3"></div>
-                    <a href="${tableUrl}" target="_blank" class="no-print text-xs font-bold text-[#60a5fa] hover:underline">
-                        معاينة شاشة الطاولة <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>
-                    </a>
+                    <h4 class="text-xl font-black text-white mb-3">${escapeHTML(item.label)}</h4>
+                    <div id="${boxId}" class="p-2.5 bg-[#f4ebd9] rounded-xl border border-white/15 mb-3"></div>
+                    <div class="no-print flex items-center gap-3 text-xs font-bold mt-1">
+                        <a href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer" class="text-[#60a5fa] hover:underline">
+                            معاينة <i class="fa-solid fa-arrow-up-right-from-square mr-0.5"></i>
+                        </a>
+                        <button type="button" onclick="deleteManualQRCode('${escapeHTML(item.id)}')" class="text-rose-400 hover:text-rose-300 transition">
+                            <i class="fa-solid fa-trash ml-0.5"></i> حذف
+                        </button>
+                    </div>
                 `;
                 container.appendChild(card);
 
-                if (typeof QRCode !== 'undefined') {
-                    new QRCode(document.getElementById(`qr-box-${i}`), {
-                        text: tableUrl,
+                const qrTarget = document.getElementById(boxId);
+                if (typeof QRCode !== 'undefined' && qrTarget) {
+                    new QRCode(qrTarget, {
+                        text: item.url,
                         width: 130,
                         height: 130,
                         colorDark: '#121214',
                         colorLight: '#f4ebd9'
                     });
                 }
-            }
+            });
         }
 
         function openSettingsModal() {
