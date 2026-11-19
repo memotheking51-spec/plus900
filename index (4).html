@@ -1,0 +1,2615 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#121214">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Plus Ninety Lounge">
+    <title>Plus Ninety Lounge | نظام استدعاء الويتر الذكي QR MQTT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        /* Fallback & core styling to guarantee layout even if external CSS is slow */
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Cairo', sans-serif;
+            background-color: #121214 !important;
+            color: #f4efe4 !important;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .plus90-cream {
+            background-color: #f4ebd9 !important;
+            color: #141416 !important;
+        }
+        .plus90-blue-ring {
+            box-shadow: 0 0 0 3px #1877f2, 0 8px 24px rgba(24, 119, 242, 0.28);
+        }
+        button, input, select, textarea {
+            font-family: 'Cairo', sans-serif;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-in {
+            animation: slideIn 0.22s ease-out forwards;
+        }
+        @keyframes pulseRing {
+            0% { box-shadow: 0 0 0 0 rgba(24, 119, 242, 0.55); }
+            70% { box-shadow: 0 0 0 12px rgba(24, 119, 242, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(24, 119, 242, 0); }
+        }
+        .animate-pulse-ring {
+            animation: pulseRing 1.8s infinite;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #fff !important; color: #000 !important; }
+        }
+    </style>
+</head>
+<body class="bg-[#121214] text-[#f4efe4] min-h-screen flex flex-col selection:bg-[#1877f2] selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
+
+    <!-- =====================================================================
+         STAFF PORTAL HEADER (Hidden by default in Customer Mode)
+    ====================================================================== -->
+    <header id="staff-header" class="hidden bg-[#18181b] text-[#f4efe4] shadow-lg border-b border-white/10 sticky top-0 z-40 no-print">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div id="staff-brand-logo" class="w-11 h-11 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center font-black leading-none select-none shrink-0 overflow-hidden">
+                    <span class="text-[7px] tracking-wider uppercase text-slate-700">LOUNGE</span>
+                    <span class="text-sm font-black text-slate-950 tracking-tighter">90+</span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-extrabold text-base sm:text-lg leading-tight text-white">Plus Ninety Lounge</h1>
+                        <span class="text-[11px] bg-[#1877f2]/20 text-[#60a5fa] border border-[#1877f2]/40 px-2 py-0.5 rounded-full font-bold">24H • LIVE MQTT</span>
+                    </div>
+                    <p class="text-xs text-slate-400">بوابة النادل والإدارة • القناة: <span id="stat-channel" class="font-mono text-[#f4ebd9]">plus-ninety-lounge</span></p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <div id="staff-mqtt-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold">
+                    <span id="staff-mqtt-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="staff-mqtt-text">جاري الاتصال...</span>
+                </div>
+
+                <!-- Install App Button for Waiter & Admin Screens -->
+                <button onclick="installPWAApp()" id="btn-install-app" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-extrabold text-xs transition" title="تثبيت التطبيق على شاشة الجهاز">
+                    <i class="fa-solid fa-download"></i>
+                    <span>تثبيت التطبيق</span>
+                </button>
+
+                <button onclick="toggleSound()" id="btn-sound-toggle" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[#f4ebd9] transition" title="تفعيل/كتم الصوت">
+                    <i id="icon-sound" class="fa-solid fa-volume-high"></i>
+                </button>
+
+                <!-- Admin Branding Button (Logo & Link Editor - Admin PIN Required) -->
+                <button onclick="openBrandingModal()" id="btn-admin-branding" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold text-xs sm:text-sm transition shadow" title="تعديل اللوجو واللينك (باسورد الأدمن)">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>تعديل اللوجو واللينك</span>
+                    <span id="admin-lock-pill" class="text-[10px] bg-black/30 px-1.5 py-0.5 rounded-md">أدمن</span>
+                </button>
+
+                <!-- Admin Customer Screen Settings Button (Admin PIN Required) -->
+                <button onclick="openCustomerScreenModal()" id="btn-admin-customer-screen" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-[#1877f2]/40 text-[#93c5fd] font-extrabold text-xs sm:text-sm transition shadow" title="إعدادات شاشة العميل (باسورد الأدمن)">
+                    <i class="fa-solid fa-mobile-screen-button"></i>
+                    <span>إعداد شاشة العميل</span>
+                </button>
+
+                <!-- QR Generator Button -->
+                <button onclick="openQRModal()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl plus90-cream hover:brightness-95 font-extrabold text-xs sm:text-sm transition shadow">
+                    <i class="fa-solid fa-qrcode"></i>
+                    <span>رموز QR للطاولات</span>
+                </button>
+
+                <!-- MQTT Settings Button -->
+                <button onclick="openSettingsModal()" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition" title="إعدادات MQTT">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+
+                <!-- Exit Staff Mode -->
+                <button onclick="exitStaffMode()" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs transition" title="العودة لشاشة العميل">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span class="hidden sm:inline">خروج</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- =====================================================================
+         1. ISOLATED CUSTOMER VIEW (Default when scanning Table QR)
+    ====================================================================== -->
+    <main id="view-customer" class="flex-1 flex flex-col max-w-lg w-full mx-auto px-4 py-6">
+        <div class="flex items-center justify-between gap-2 mb-5 bg-[#1b1b1f] p-4 rounded-3xl shadow-lg border border-white/10">
+            <div onclick="handleSecretLogoTap()" class="flex items-center gap-3.5 cursor-pointer select-none" title="Plus Ninety Lounge">
+                <div id="cust-brand-logo" class="w-14 h-14 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center shrink-0 overflow-hidden">
+                    <span class="text-[7px] font-extrabold tracking-widest text-slate-700 uppercase">90+ LOUNGE</span>
+                    <span class="text-lg font-black text-slate-950 leading-none my-0.5">90+</span>
+                    <span class="text-[6.5px] font-bold tracking-wider text-slate-700 uppercase">PLUS NINETY</span>
+                </div>
+                <div>
+                    <h1 id="cust-brand-name" class="font-black text-base sm:text-lg text-white leading-tight">Plus Ninety Lounge</h1>
+                    <p id="cust-brand-tagline" class="text-[11px] text-[#f4ebd9]/80 font-semibold mt-0.5">Your second home • 24 Hour Service</p>
+                    <p id="cust-brand-desc" class="text-[10px] text-slate-400">تجمع • أكل • TV • PlayStation • خدمة 24 ساعة</p>
+                </div>
+            </div>
+
+            <!-- Live Connection Pill -->
+            <div id="cust-mqtt-badge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[#f4ebd9] text-xs font-bold shrink-0">
+                <span id="cust-mqtt-dot" class="w-2 h-2 rounded-full bg-[#1877f2] animate-pulse"></span>
+                <span id="cust-mqtt-text">متصل</span>
+            </div>
+        </div>
+
+        <!-- STATE A: No QR Scanned Yet (No ?table=X in URL) -->
+        <div id="customer-no-qr-screen" class="hidden flex-1 flex flex-col items-center justify-center text-center bg-[#1b1b1f] rounded-3xl p-7 shadow-lg border border-white/10 animate-slide-in">
+            <div id="noqr-brand-logo" class="w-20 h-20 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center mb-4 overflow-hidden">
+                <span class="text-[8px] font-extrabold tracking-widest text-slate-700">LOUNGE</span>
+                <span class="text-2xl font-black text-slate-950 leading-none">90+</span>
+            </div>
+            <h2 id="noqr-brand-title" class="text-xl font-black text-white mb-2">أهلاً بك في Plus Ninety Lounge</h2>
+            <p id="noqr-brand-bio" class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
+                Plus 90 is your second home where you can gather with your friends, eat, watch TV, and play with 24 hour service.
+            </p>
+            <p id="noqr-guide-text" class="text-xs text-[#f4ebd9] bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 mb-5">
+                يرجى مسح رمز QR الموجود على طاولتك أو غرفتك لبدء الاستدعاء الفوري للنادل.
+            </p>
+
+            <div class="w-full pt-4 border-t border-white/10">
+                <p id="noqr-sim-label" class="text-xs font-bold text-slate-400 mb-3">تجربة محاكاة مسح QR لطاولة:</p>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="simulateScanTable(1)" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-[#1877f2] text-white border border-white/10 font-extrabold text-xs transition">
+                        <i class="fa-solid fa-qrcode ml-1"></i> طاولة 1
+                    </button>
+                    <button onclick="simulateScanTable(5)" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-[#1877f2] text-white border border-white/10 font-extrabold text-xs transition">
+                        <i class="fa-solid fa-qrcode ml-1"></i> طاولة 5
+                    </button>
+                    <button onclick="simulateScanTable(12)" class="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-[#1877f2] text-white border border-white/10 font-extrabold text-xs transition">
+                        <i class="fa-solid fa-qrcode ml-1"></i> طاولة 12
+                    </button>
+                </div>
+
+                <div class="mt-4 flex items-center gap-2">
+                    <a id="noqr-brand-link" href="https://linktr.ee/plusninetylounge" target="_blank" rel="noopener noreferrer" class="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-[#1877f2]/15 hover:bg-[#1877f2]/25 border border-[#1877f2]/40 text-[#93c5fd] font-bold text-xs transition">
+                        <i class="fa-solid fa-link"></i>
+                        <span id="noqr-brand-link-text">linktr.ee/plusninetylounge</span>
+                    </a>
+                    <div class="relative shrink-0">
+                        <button type="button" onclick="toggleSocialMenu('noqr-social-menu', event)" aria-label="حسابات السوشيال ميديا" class="h-full px-3.5 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 text-[#f4ebd9] font-bold text-xs transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-share-nodes text-[#60a5fa]"></i>
+                            <i class="fa-brands fa-facebook-f text-[11px] text-[#60a5fa]"></i>
+                            <i class="fa-brands fa-instagram text-[11px] text-pink-400"></i>
+                            <i class="fa-brands fa-tiktok text-[11px] text-white"></i>
+                        </button>
+                        <div id="noqr-social-menu" class="hidden absolute bottom-full left-0 mb-2 w-48 bg-[#1b1b1f] border border-white/15 rounded-2xl p-2 shadow-2xl z-40 flex flex-col gap-1 text-right">
+                            <a id="social-fb-noqr" href="https://www.facebook.com/plus90eg" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-bold text-[#93c5fd] transition">
+                                <i class="fa-brands fa-facebook-f w-4 text-center text-[#1877f2]"></i>
+                                <span>فيسبوك (Facebook)</span>
+                            </a>
+                            <a id="social-ig-noqr" href="https://www.instagram.com/plus_ninety_lounge?igsh=MWJiYXkyZ2NiZWQxNg%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-bold text-pink-300 transition">
+                                <i class="fa-brands fa-instagram w-4 text-center text-pink-400"></i>
+                                <span>انستجرام (Instagram)</span>
+                            </a>
+                            <a id="social-tt-noqr" href="https://www.tiktok.com/@plusninetylounge" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-bold text-white transition">
+                                <i class="fa-brands fa-tiktok w-4 text-center text-white"></i>
+                                <span>تيك توك (TikTok)</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="openStaffLoginModal()" class="mt-3 text-xs font-bold text-slate-400 hover:text-[#f4ebd9] transition underline">
+                    دخول النادل / لوحة التحكم (PIN: 1234)
+                </button>
+            </div>
+        </div>
+
+        <!-- STATE B: Locked Table Interface (When ?table=X is detected from QR) -->
+        <div id="customer-table-interface" class="hidden flex-1 flex flex-col gap-5 animate-slide-in">
+            <div class="bg-gradient-to-l from-[#1f2430] to-[#16161a] text-white rounded-3xl p-5 shadow-lg border border-white/10 relative overflow-hidden">
+                <div class="absolute -left-6 -bottom-6 text-[#f4ebd9]/5 text-8xl font-black pointer-events-none select-none">
+                    90+
+                </div>
+                <div class="flex items-center justify-between relative z-10">
+                    <div>
+                        <span class="inline-flex items-center gap-1.5 text-xs font-bold text-[#93c5fd] bg-[#1877f2]/15 border border-[#1877f2]/30 px-2.5 py-1 rounded-full mb-2">
+                            <i class="fa-solid fa-circle-check"></i> <span id="locked-qr-badge-text">مؤكد عبر رمز QR • خدمة 24 ساعة</span>
+                        </span>
+                        <h2 class="text-2xl sm:text-3xl font-black tracking-tight">
+                            <span id="locked-table-prefix">طاولة رقم</span> <span id="locked-table-number" class="text-[#f4ebd9]">--</span>
+                        </h2>
+                    </div>
+                    <button id="btn-cust-cancel-call" onclick="cancelCustomerCall()" class="text-xs font-bold text-slate-300 hover:text-rose-400 px-2.5 py-1.5 rounded-xl hover:bg-rose-500/10 transition shrink-0">
+                        إلغاء
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Call Status Card (Shows when a call is active for this table) -->
+            <div id="customer-status-card" class="hidden rounded-3xl p-5 border-2 bg-[#262116] border-amber-400 transition-all">
+                <div class="flex items-start gap-3.5">
+                    <div id="cust-status-icon-box" class="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl shrink-0">
+                        <i id="cust-status-icon" class="fa-solid fa-bell-concierge"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <span id="cust-status-badge" class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300">بانتظار النادل</span>
+                        <h4 id="cust-status-title" class="font-black text-white text-sm sm:text-base mt-1.5">تم إرسال الطلب</h4>
+                        <p id="cust-status-desc" class="text-xs text-slate-300 mt-0.5">جاري تنبيه طاقم الخدمة فوراً...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main 4 Service Action Buttons -->
+            <div id="customer-service-buttons-section">
+                <h3 id="customer-service-heading" class="text-sm font-extrabold text-[#f4ebd9] mb-3 px-1">كيف يمكننا خدمتك الآن في Plus 90؟</h3>
+                <div id="customer-service-grid" class="grid grid-cols-2 gap-3.5">
+                    <button id="btn-cust-call-waiter" data-service-key="call_waiter" onclick="sendCustomerRequest('call_waiter')" class="group bg-[#1b1b1f] hover:bg-[#1877f2] active:scale-[0.98] p-5 rounded-3xl shadow-sm border border-white/10 hover:border-[#1877f2] transition-all flex flex-col items-center text-center gap-3">
+                        <div class="w-14 h-14 rounded-2xl bg-[#f4ebd9]/10 group-hover:bg-white/20 text-[#f4ebd9] group-hover:text-white flex items-center justify-center text-2xl transition">
+                            <i class="fa-solid fa-bell-concierge"></i>
+                        </div>
+                        <div>
+                            <div class="svc-title font-black text-white text-base">استدعاء النادل</div>
+                            <div class="svc-subtitle text-[11px] text-slate-400 group-hover:text-blue-100 font-semibold mt-0.5">حضور مباشر للطاولة</div>
+                        </div>
+                    </button>
+
+                    <button id="btn-cust-request-bill" data-service-key="request_bill" onclick="sendCustomerRequest('request_bill')" class="group bg-[#1b1b1f] hover:bg-emerald-600 active:scale-[0.98] p-5 rounded-3xl shadow-sm border border-white/10 hover:border-emerald-600 transition-all flex flex-col items-center text-center gap-3">
+                        <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 group-hover:bg-white/20 text-emerald-400 group-hover:text-white flex items-center justify-center text-2xl transition">
+                            <i class="fa-solid fa-file-invoice-dollar"></i>
+                        </div>
+                        <div>
+                            <div class="svc-title font-black text-white text-base">طلب الفاتورة</div>
+                            <div class="svc-subtitle text-[11px] text-slate-400 group-hover:text-emerald-100 font-semibold mt-0.5">كاش أو شبكة / فيزا</div>
+                        </div>
+                    </button>
+
+                    <button id="btn-cust-request-menu" data-service-key="request_menu" onclick="sendCustomerRequest('request_menu')" class="group bg-[#1b1b1f] hover:bg-amber-500 active:scale-[0.98] p-5 rounded-3xl shadow-sm border border-white/10 hover:border-amber-500 transition-all flex flex-col items-center text-center gap-3">
+                        <div class="w-14 h-14 rounded-2xl bg-amber-500/10 group-hover:bg-slate-950/20 text-amber-300 group-hover:text-slate-950 flex items-center justify-center text-2xl transition">
+                            <i class="fa-solid fa-utensils"></i>
+                        </div>
+                        <div>
+                            <div class="svc-title font-black text-white group-hover:text-slate-950 text-base">إضافة طلبات</div>
+                            <div class="svc-subtitle text-[11px] text-slate-400 group-hover:text-slate-900 font-semibold mt-0.5">أكل • مشروبات • سناكس</div>
+                        </div>
+                    </button>
+
+                    <button id="btn-cust-clean-table" data-service-key="clean_table" onclick="sendCustomerRequest('clean_table')" class="group bg-[#1b1b1f] hover:bg-purple-600 active:scale-[0.98] p-5 rounded-3xl shadow-sm border border-white/10 hover:border-purple-600 transition-all flex flex-col items-center text-center gap-3">
+                        <div class="w-14 h-14 rounded-2xl bg-purple-500/10 group-hover:bg-white/20 text-purple-300 group-hover:text-white flex items-center justify-center text-2xl transition">
+                            <i class="fa-solid fa-gamepad"></i>
+                        </div>
+                        <div>
+                            <div class="svc-title font-black text-white text-base">خدمة اللعب / الطاولة</div>
+                            <div class="svc-subtitle text-[11px] text-slate-400 group-hover:text-purple-100 font-semibold mt-0.5">TV • PlayStation • ترتيب</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <div id="customer-note-section" class="bg-[#1b1b1f] rounded-3xl p-5 shadow-sm border border-white/10">
+                <div id="customer-shortcuts-row">
+                    <label id="customer-shortcuts-label" class="block text-xs font-extrabold text-[#f4ebd9] mb-2.5">طلبات سريعة بضغطة واحدة:</label>
+                    <div id="customer-shortcuts-list" class="flex flex-wrap gap-2 mb-4">
+                        <button onclick="sendQuickShortcut('ماء بارد')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition">
+                            💧 ماء
+                        </button>
+                        <button onclick="sendQuickShortcut('مناديل إضافية')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition">
+                            🧻 مناديل
+                        </button>
+                        <button onclick="sendQuickShortcut('ذراع تحكم PlayStation إضافي')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition">
+                            🎮 ذراع تحكم
+                        </button>
+                        <button onclick="sendQuickShortcut('تغيير قناة / إعداد TV')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition">
+                            📺 إعداد TV
+                        </button>
+                    </div>
+                </div>
+
+                <div id="customer-custom-note-box" class="flex gap-2">
+                    <input id="customer-note-input" type="text" placeholder="أو اكتب ملاحظتك للنادل هنا..." class="flex-1 bg-[#121214] text-white border border-white/15 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-[#1877f2] transition">
+                    <button id="btn-cust-send-note" onclick="sendCustomNoteRequest()" class="px-5 py-3 rounded-2xl plus90-cream hover:brightness-95 font-extrabold text-sm transition shrink-0 flex items-center gap-2">
+                        <span id="cust-send-btn-text">إرسال</span>
+                        <i class="fa-solid fa-paper-plane text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="customer-footer-box" class="text-center text-xs text-slate-400 pt-1 flex flex-wrap items-center justify-center gap-2 relative">
+                <a id="cust-footer-link" href="https://linktr.ee/plusninetylounge" target="_blank" rel="noopener noreferrer" class="hover:text-[#f4ebd9] transition underline">
+                    linktr.ee/plusninetylounge
+                </a>
+                <span>•</span>
+                <span id="cust-footer-brand">Plus Ninety Lounge • 24H</span>
+                <div class="relative inline-block">
+                    <button type="button" onclick="toggleSocialMenu('footer-social-menu', event)" aria-label="فيسبوك وانستجرام وتيك توك" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[#f4ebd9] text-[11px] font-bold transition">
+                        <i class="fa-brands fa-facebook-f text-[#60a5fa]"></i>
+                        <i class="fa-brands fa-instagram text-pink-400"></i>
+                        <i class="fa-brands fa-tiktok text-white"></i>
+                    </button>
+                    <div id="footer-social-menu" class="hidden absolute bottom-full left-0 mb-2 w-48 bg-[#1b1b1f] border border-white/15 rounded-2xl p-2 shadow-2xl z-40 flex flex-col gap-1 text-right">
+                        <a id="social-fb-footer" href="https://www.facebook.com/plus90eg" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-bold text-[#93c5fd] transition">
+                            <i class="fa-brands fa-facebook-f w-4 text-center text-[#1877f2]"></i>
+                            <span>فيسبوك (Facebook)</span>
+                        </a>
+                        <a id="social-ig-footer" href="https://www.instagram.com/plus_ninety_lounge?igsh=MWJiYXkyZ2NiZWQxNg%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-bold text-pink-300 transition">
+                            <i class="fa-brands fa-instagram w-4 text-center text-pink-400"></i>
+                            <span>انستجرام (Instagram)</span>
+                        </a>
+                        <a id="social-tt-footer" href="https://www.tiktok.com/@plusninetylounge" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/10 text-xs font-bold text-white transition">
+                            <i class="fa-brands fa-tiktok w-4 text-center text-white"></i>
+                            <span>تيك توك (TikTok)</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- =====================================================================
+         2. WAITER & STAFF DASHBOARD VIEW
+    ====================================================================== -->
+    <main id="view-waiter" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+        <!-- Staff Mode Switcher: Live Calls vs Admin Dashboard -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5 bg-[#1b1b1f] p-2.5 rounded-2xl border border-white/10">
+            <div class="flex items-center gap-2">
+                <button id="tab-waiter-calls" onclick="switchStaffSubView('calls')" class="px-4 py-2 rounded-xl bg-[#1877f2] text-white font-extrabold text-xs sm:text-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-bell-concierge"></i>
+                    <span>نداءات الطاولات المباشرة</span>
+                </button>
+                <button id="tab-admin-dashboard" onclick="openAdminDashboardTab()" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#f4ebd9] font-extrabold text-xs sm:text-sm transition flex items-center gap-2 border border-white/10">
+                    <i class="fa-solid fa-chart-line text-[#60a5fa]"></i>
+                    <span>داش بورد الإدارة والتحكم</span>
+                    <span id="dash-lock-badge" class="text-[10px] bg-black/40 text-[#93c5fd] px-1.5 py-0.5 rounded-md">أدمن</span>
+                </button>
+            </div>
+            <div class="text-xs text-slate-400 px-2">
+                القناة النشطة: <span id="dash-active-room-label" class="font-bold text-[#f4ebd9]">plus-ninety-lounge</span>
+            </div>
+        </div>
+
+        <div id="waiter-live-calls-section">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
+            <div class="bg-[#1b1b1f] p-4 rounded-2xl shadow-sm border border-white/10 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-slate-400">بانتظار الاستجابة</p>
+                    <p id="stat-pending" class="text-2xl font-black text-[#f4ebd9] mt-0.5">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-[#f4ebd9]/10 text-[#f4ebd9] flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-bell"></i>
+                </div>
+            </div>
+
+            <div class="bg-[#1b1b1f] p-4 rounded-2xl shadow-sm border border-white/10 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-slate-400">جاري التنفيذ</p>
+                    <p id="stat-ack" class="text-2xl font-black text-[#60a5fa] mt-0.5">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-[#1877f2]/15 text-[#60a5fa] flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-person-walking"></i>
+                </div>
+            </div>
+
+            <div class="bg-[#1b1b1f] p-4 rounded-2xl shadow-sm border border-white/10 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-slate-400">تم إنجازه اليوم</p>
+                    <p id="stat-completed" class="text-2xl font-black text-emerald-400 mt-0.5">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-check-double"></i>
+                </div>
+            </div>
+
+            <div class="bg-[#1b1b1f] p-4 rounded-2xl shadow-sm border border-white/10 flex items-center justify-between gap-2">
+                <button onclick="simulateIncomingCall()" class="w-full h-full py-2.5 px-3 rounded-xl plus90-cream hover:brightness-95 font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-flask text-[#1877f2]"></i>
+                    <span>محاكاة نداء طاولة</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 class="text-lg font-black text-white flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#1877f2] animate-ping"></span>
+                <span>نداءات Plus Ninety Lounge المباشرة</span>
+            </h2>
+            <a id="link-open-customer-tab" href="?table=1" target="_blank" class="text-xs font-bold text-[#f4ebd9] bg-white/5 hover:bg-white/10 border border-white/15 px-3.5 py-2 rounded-xl transition flex items-center gap-2">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                <span>فتح شاشة العميل (طاولة 1) في نافذة جديدة</span>
+            </a>
+        </div>
+
+        <div id="waiter-empty-state" class="bg-[#1b1b1f] rounded-3xl p-12 text-center border border-white/10 shadow-sm">
+            <div class="w-16 h-16 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center mx-auto mb-3">
+                <span class="text-base font-black text-slate-950 leading-none">90+</span>
+            </div>
+            <h3 class="font-extrabold text-white text-base">لا توجد نداءات نشطة حالياً</h3>
+            <p class="text-xs text-slate-400 mt-1">ستظهر هنا طلبات الطاولات والغرف فور قيام أي عميل بمسح رمز الـ QR وطلب الخدمة.</p>
+        </div>
+
+        <div id="waiter-calls-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+
+        <!-- =================================================================
+             ADMIN DASHBOARD SECTION (Linked to Branding, Customer Screen & Calls)
+        ================================================================== -->
+        <section id="admin-dashboard-section" class="hidden space-y-6 animate-slide-in">
+            <!-- Top KPI Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div class="bg-[#1b1b1f] p-4 rounded-2xl border border-white/10">
+                    <p class="text-xs font-bold text-slate-400">إجمالي الطلبات المسجلة</p>
+                    <p id="dash-total-requests" class="text-2xl font-black text-white mt-1">0</p>
+                    <p class="text-[11px] text-emerald-400 mt-1">مرتبط بالبث المباشر MQTT</p>
+                </div>
+                <div class="bg-[#1b1b1f] p-4 rounded-2xl border border-white/10">
+                    <p class="text-xs font-bold text-slate-400">النداءات النشطة الآن</p>
+                    <p id="dash-active-calls" class="text-2xl font-black text-amber-300 mt-1">0</p>
+                    <p class="text-[11px] text-slate-400 mt-1">بانتظار أو قيد التنفيذ</p>
+                </div>
+                <div class="bg-[#1b1b1f] p-4 rounded-2xl border border-white/10">
+                    <p class="text-xs font-bold text-slate-400">أزرار الخدمات الظاهرة</p>
+                    <p id="dash-visible-services" class="text-2xl font-black text-[#60a5fa] mt-1">4 / 4</p>
+                    <p class="text-[11px] text-slate-400 mt-1">في شاشة العميل</p>
+                </div>
+                <div class="bg-[#1b1b1f] p-4 rounded-2xl border border-white/10">
+                    <p class="text-xs font-bold text-slate-400">حالة هوية المكان</p>
+                    <p id="dash-brand-status" class="text-sm font-black text-[#f4ebd9] mt-1.5 truncate">Plus Ninety Lounge</p>
+                    <p id="dash-brand-link-status" class="text-[11px] text-[#93c5fd] mt-1 truncate">linktr.ee/plusninetylounge</p>
+                </div>
+            </div>
+
+            <!-- Quick Control Cards Linked to Existing Modals & Live Preview -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="bg-[#1b1b1f] rounded-3xl p-5 border border-white/10 flex flex-col justify-between gap-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-[#1877f2]/20 text-[#93c5fd]">الهوية والروابط</span>
+                            <i class="fa-solid fa-link text-[#60a5fa]"></i>
+                        </div>
+                        <h3 class="font-black text-white text-base">تعديل اللوجو واللينك والسوشيال</h3>
+                        <p class="text-xs text-slate-400 mt-1">تحديث اسم المكان، نص أو صورة اللوجو، اللينك الرئيسي، وحسابات فيسبوك وانستجرام وتيك توك.</p>
+                    </div>
+                    <button onclick="openBrandingModal()" class="w-full py-2.5 px-4 rounded-xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold text-xs transition">
+                        فتح محرر اللوجو واللينك
+                    </button>
+                </div>
+
+                <div class="bg-[#1b1b1f] rounded-3xl p-5 border border-white/10 flex flex-col justify-between gap-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300">شاشة العميل</span>
+                            <i class="fa-solid fa-arrows-up-down text-amber-300"></i>
+                        </div>
+                        <h3 class="font-black text-white text-base">تعديل الكلام وترتيب الأيقونات</h3>
+                        <p class="text-xs text-slate-400 mt-1">إعادة ترتيب أيقونات الخدمات، تغيير نصوص الأزرار والعناوين والطلبات السريعة، وإظهار أو إخفاء العناصر.</p>
+                    </div>
+                    <button onclick="openCustomerScreenModal()" class="w-full py-2.5 px-4 rounded-xl plus90-cream hover:brightness-95 font-extrabold text-xs transition">
+                        فتح إعدادات شاشة العميل
+                    </button>
+                </div>
+
+                <div class="bg-[#1b1b1f] rounded-3xl p-5 border border-white/10 flex flex-col justify-between gap-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300">الطاولات والاتصال</span>
+                            <i class="fa-solid fa-qrcode text-emerald-300"></i>
+                        </div>
+                        <h3 class="font-black text-white text-base">رموز QR وإعدادات MQTT</h3>
+                        <p class="text-xs text-slate-400 mt-1">توليد وطباعة رموز QR للطاولات والغرف أو تعديل وسيط MQTT وباسورد الأدمن والويتر.</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="openQRModal()" class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs transition">
+                            رموز QR
+                        </button>
+                        <button onclick="openSettingsModal()" class="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-extrabold text-xs transition">
+                            إعدادات MQTT
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Breakdown by Service Type + Live Customer Screen Snapshot -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="bg-[#1b1b1f] rounded-3xl p-5 border border-white/10">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-black text-white text-base">توزيع الطلبات حسب نوع الخدمة</h3>
+                        <button onclick="clearCallHistoryLog()" class="text-xs font-bold text-rose-300 hover:text-rose-200 bg-rose-500/10 px-3 py-1 rounded-xl transition">
+                            تصفير السجل
+                        </button>
+                    </div>
+                    <div id="dash-service-breakdown" class="space-y-3 text-xs"></div>
+                </div>
+
+                <div class="bg-[#1b1b1f] rounded-3xl p-5 border border-white/10">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-black text-white text-base">ملخص إعدادات شاشة العميل الحالية</h3>
+                        <a id="dash-preview-customer-btn" href="?table=1" target="_blank" class="text-xs font-bold text-[#60a5fa] hover:underline">
+                            معاينة حية <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
+                    <div id="dash-customer-config-summary" class="space-y-2 text-xs text-slate-300"></div>
+                </div>
+            </div>
+
+            <!-- Recent Calls Log Table -->
+            <div class="bg-[#1b1b1f] rounded-3xl p-5 border border-white/10">
+                <h3 class="font-black text-white text-base mb-3">سجل النداءات والطلبات الأخيرة</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-xs">
+                        <thead>
+                            <tr class="border-b border-white/10 text-slate-400">
+                                <th class="py-2.5 px-3">الطاولة</th>
+                                <th class="py-2.5 px-3">الخدمة</th>
+                                <th class="py-2.5 px-3">الملاحظة</th>
+                                <th class="py-2.5 px-3">الحالة</th>
+                                <th class="py-2.5 px-3">الوقت</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dash-calls-history-tbody" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- =====================================================================
+         MODALS
+    ====================================================================== -->
+
+    <!-- 1. Staff Secret PIN Modal -->
+    <div id="staff-login-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1b1b1f] text-white border border-white/10 rounded-3xl max-w-sm w-full p-6 shadow-2xl animate-slide-in">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-full plus90-cream plus90-blue-ring flex items-center justify-center font-black text-xs">
+                        90+
+                    </div>
+                    <div>
+                        <h3 class="font-black text-white text-base">دخول النادل • Plus 90</h3>
+                        <p class="text-xs text-slate-400">أدخل الرمز السري للمتابعة</p>
+                    </div>
+                </div>
+                <button onclick="closeStaffLoginModal()" class="w-8 h-8 rounded-full hover:bg-white/10 text-slate-400 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label for="staff-pin-input" class="block text-xs font-bold text-slate-300 mb-1.5">الرمز السري (PIN)</label>
+                    <input id="staff-pin-input" type="password" inputmode="numeric" maxlength="12" placeholder="••••" onkeydown="if(event.key==='Enter') verifyStaffPin()" class="w-full bg-[#121214] text-white border border-white/15 rounded-2xl px-4 py-3 text-center text-lg font-black tracking-widest focus:outline-none focus:border-[#1877f2] transition">
+                </div>
+                <p id="staff-pin-error" class="hidden text-xs font-bold text-rose-300 bg-rose-500/15 border border-rose-500/30 rounded-xl px-3 py-2">
+                    الرمز السري غير صحيح، حاول مرة أخرى.
+                </p>
+                <button onclick="verifyStaffPin()" class="w-full py-3 rounded-2xl bg-[#1877f2] hover:bg-blue-500 text-white font-bold text-sm transition">
+                    دخول إلى البوابة
+                </button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="fillQuickPin('waiter')" type="button" class="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#f4ebd9] font-bold text-xs transition">
+                        دخول ويتر (1234)
+                    </button>
+                    <button onclick="fillQuickPin('admin')" type="button" class="py-2 rounded-xl bg-[#1877f2]/20 hover:bg-[#1877f2]/30 text-[#93c5fd] font-bold text-xs transition">
+                        دخول أدمن (9090)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin PIN Verification Modal -->
+    <div id="admin-pin-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1b1b1f] text-white border border-[#1877f2]/40 rounded-3xl max-w-sm w-full p-6 shadow-2xl animate-slide-in">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-full bg-[#1877f2]/20 text-[#93c5fd] flex items-center justify-center font-black text-base">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-white text-base">صلاحية الأدمن مطلوبة</h3>
+                        <p class="text-xs text-slate-400">هذا الإجراء مخصص لباسورد الأدمن فقط</p>
+                    </div>
+                </div>
+                <button onclick="closeAdminPinModal()" class="w-8 h-8 rounded-full hover:bg-white/10 text-slate-400 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label for="admin-pin-input" class="block text-xs font-bold text-slate-300 mb-1.5">باسورد الأدمن (Admin PIN)</label>
+                    <input id="admin-pin-input" type="password" inputmode="numeric" maxlength="12" placeholder="••••" onkeydown="if(event.key==='Enter') verifyAdminPin()" class="w-full bg-[#121214] text-white border border-white/15 rounded-2xl px-4 py-3 text-center text-lg font-black tracking-widest focus:outline-none focus:border-[#1877f2] transition">
+                </div>
+                <p id="admin-pin-error" class="hidden text-xs font-bold text-rose-300 bg-rose-500/15 border border-rose-500/30 rounded-xl px-3 py-2">
+                    باسورد الأدمن غير صحيح (باسورد الويتر لا يفتح تعديل اللوجو واللينك).
+                </p>
+                <button onclick="verifyAdminPin()" class="w-full py-3 rounded-2xl bg-[#1877f2] hover:bg-blue-500 text-white font-bold text-sm transition">
+                    تأكيد باسورد الأدمن
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Logo & Link Editor Modal -->
+    <div id="branding-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1b1b1f] text-white border border-white/10 rounded-3xl max-w-lg w-full p-6 shadow-2xl animate-slide-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="font-black text-lg text-white">تعديل اللوجو واللينك والبيانات</h3>
+                    <p class="text-xs text-slate-400">مفعل بصلاحية الأدمن • يُطبق فوراً على شاشة العميل</p>
+                </div>
+                <button onclick="closeBrandingModal()" class="w-8 h-8 rounded-full hover:bg-white/10 text-slate-400 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="space-y-3.5 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">اسم المكان</label>
+                    <input id="brand-input-name" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">نص اللوجو الدائري</label>
+                        <input id="brand-input-logo-text" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">رابط صورة اللوجو (URL)</label>
+                        <input id="brand-input-logo-url" type="text" dir="ltr" placeholder="https://..." class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5 font-mono">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">اللينك الرئيسي (Link)</label>
+                    <input id="brand-input-link" type="text" dir="ltr" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5 font-mono">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">لينك فيسبوك</label>
+                        <input id="brand-input-facebook" type="text" dir="ltr" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2 font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">لينك انستجرام</label>
+                        <input id="brand-input-instagram" type="text" dir="ltr" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2 font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">لينك تيك توك</label>
+                        <input id="brand-input-tiktok" type="text" dir="ltr" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2 font-mono">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">العنوان الفرعي / 24 ساعة</label>
+                    <input id="brand-input-tagline" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">نبذة المكان</label>
+                    <textarea id="brand-input-bio" rows="2" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5"></textarea>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">سطر الخدمات</label>
+                    <input id="brand-input-desc" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5">
+                </div>
+            </div>
+            <div class="flex gap-2 mt-6">
+                <button onclick="saveBrandingSettings()" class="flex-1 py-3 rounded-2xl bg-[#1877f2] hover:bg-blue-500 text-white font-bold text-xs sm:text-sm transition">
+                    حفظ اللوجو واللينك
+                </button>
+                <button onclick="resetBrandingDefaults()" type="button" class="px-3.5 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-amber-300 font-bold text-xs transition">
+                    افتراضي
+                </button>
+                <button onclick="closeBrandingModal()" type="button" class="px-3.5 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-200 font-bold text-xs transition">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Customer Screen Settings Modal -->
+    <div id="customer-screen-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1b1b1f] text-white border border-[#1877f2]/40 rounded-3xl max-w-lg w-full p-6 shadow-2xl animate-slide-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="font-black text-lg text-white">إعدادات شاشة العميل</h3>
+                    <p class="text-xs text-slate-400">صلاحية الأدمن • تخصيص العناصر الظاهرة للعميل</p>
+                </div>
+                <button onclick="closeCustomerScreenModal()" class="w-8 h-8 rounded-full hover:bg-white/10 text-slate-400 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3.5 text-xs">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">عنوان قسم الخدمات</label>
+                        <input id="cs-heading-input" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">كلمة الطاولة</label>
+                        <input id="cs-table-prefix-input" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">شارة تأكيد الـ QR</label>
+                        <input id="cs-qr-badge-input" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">زر الإلغاء</label>
+                        <input id="cs-cancel-text-input" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">عنوان الطلبات السريعة</label>
+                        <input id="cs-shortcuts-label-input" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">نص زر الإرسال</label>
+                        <input id="cs-send-text-input" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block font-bold text-slate-300 mb-1">نص حقل الملاحظات</label>
+                        <input id="cs-placeholder-input" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block font-bold text-slate-300 mb-1">رسالة شاشة عدم مسح QR</label>
+                        <input id="cs-noqr-msg-input" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block font-bold text-slate-300 mb-1">نص محاكاة الطاولات</label>
+                        <input id="cs-noqr-sim-input" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-2">
+                    </div>
+                </div>
+
+                <div class="pt-1">
+                    <label class="block font-bold text-[#93c5fd] mb-2">ترتيب وتعديل أيقونات الخدمات (تحريك لأعلى / لأسفل + نص كل زر)</label>
+                    <div id="cs-services-order-list" class="space-y-2"></div>
+                </div>
+
+                <div class="pt-1">
+                    <label class="block font-bold text-[#93c5fd] mb-2">تعديل أزرار الطلبات السريعة</label>
+                    <div id="cs-shortcuts-editor-list" class="space-y-2"></div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                    <label class="flex items-center justify-between bg-[#121214] border border-white/10 rounded-xl px-3 py-2 cursor-pointer">
+                        <span class="font-bold text-slate-200">الطلبات السريعة</span>
+                        <input id="cs-show-shortcuts" type="checkbox" class="w-4 h-4 accent-[#1877f2]">
+                    </label>
+                    <label class="flex items-center justify-between bg-[#121214] border border-white/10 rounded-xl px-3 py-2 cursor-pointer">
+                        <span class="font-bold text-slate-200">حقل الملاحظة</span>
+                        <input id="cs-show-note-box" type="checkbox" class="w-4 h-4 accent-[#1877f2]">
+                    </label>
+                    <label class="flex items-center justify-between bg-[#121214] border border-white/10 rounded-xl px-3 py-2 cursor-pointer">
+                        <span class="font-bold text-slate-200">رابط الفوتر</span>
+                        <input id="cs-show-footer" type="checkbox" class="w-4 h-4 accent-[#1877f2]">
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex gap-2 mt-6">
+                <button onclick="saveCustomerScreenSettings()" class="flex-1 py-3 rounded-2xl bg-[#1877f2] hover:bg-blue-500 text-white font-bold text-xs sm:text-sm transition">
+                    حفظ إعدادات العميل
+                </button>
+                <button onclick="resetCustomerScreenSettings()" type="button" class="px-3.5 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-amber-300 font-bold text-xs transition">
+                    افتراضي
+                </button>
+                <button onclick="closeCustomerScreenModal()" type="button" class="px-3.5 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-200 font-bold text-xs transition">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. QR Code Generator Modal -->
+    <div id="qr-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1b1b1f] text-white border border-white/10 rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-slide-in">
+            <div class="p-4 sm:p-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 bg-[#1b1b1f] no-print">
+                <div>
+                    <h3 class="font-black text-base sm:text-lg text-white">مولد رموز QR • Plus Ninety Lounge</h3>
+                    <p class="text-xs text-slate-400">كل رمز يفتح شاشة العميل مثبتة على الطاولة والغرفة مباشرة</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <label class="text-xs font-bold text-slate-300">الغرفة / القاعة:</label>
+                    <select id="qr-room-select" onchange="onQRRoomChange()" class="bg-[#121214] border border-white/15 rounded-xl px-2.5 py-1.5 font-bold text-xs sm:text-sm text-[#f4ebd9] focus:outline-none focus:border-[#1877f2]">
+                        <option value="plus-ninety-lounge">القاعة الرئيسية (Plus 90)</option>
+                        <option value="room-1">غرفة 1 (Room 1)</option>
+                        <option value="room-2">غرفة 2 (Room 2)</option>
+                        <option value="room-3">غرفة 3 (Room 3)</option>
+                        <option value="room-4">غرفة 4 (Room 4)</option>
+                        <option value="room-5">غرفة 5 (Room 5)</option>
+                        <option value="room-6">غرفة 6 (Room 6)</option>
+                        <option value="room-7">غرفة 7 (Room 7)</option>
+                        <option value="room-8">غرفة 8 (Room 8)</option>
+                        <option value="room-9">غرفة 9 (Room 9)</option>
+                        <option value="room-10">غرفة 10 (Room 10)</option>
+                        <option value="room-11">غرفة 11 (Room 11)</option>
+                        <option value="room-12">غرفة 12 (Room 12)</option>
+                        <option value="room-13">غرفة 13 (Room 13)</option>
+                        <option value="room-14">غرفة 14 (Room 14)</option>
+                        <option value="room-15">غرفة 15 (Room 15)</option>
+                        <option value="room-16">غرفة 16 (Room 16)</option>
+                        <option value="room-17">غرفة 17 (Room 17)</option>
+                        <option value="room-18">غرفة 18 (Room 18)</option>
+                        <option value="room-19">غرفة 19 (Room 19)</option>
+                        <option value="room-20">غرفة 20 (Room 20)</option>
+                    </select>
+                    <label class="text-xs font-bold text-slate-300">عدد الطاولات:</label>
+                    <input id="qr-table-count" type="number" min="1" max="100" value="27" onchange="generateQRCards()" class="w-16 bg-[#121214] border border-white/15 rounded-xl px-2.5 py-1.5 text-center font-bold text-sm text-white">
+                    <button onclick="window.print()" class="px-4 py-2 rounded-xl plus90-cream hover:brightness-95 font-extrabold text-xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> طباعة البطاقات
+                    </button>
+                    <button onclick="closeQRModal()" class="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 flex items-center justify-center">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="qr-cards-container" class="p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 bg-[#121214]"></div>
+        </div>
+    </div>
+
+    <!-- 3. MQTT Broker Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1b1b1f] text-white border border-white/10 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-slide-in">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-black text-lg text-white">إعدادات اتصال MQTT والباسورد</h3>
+                <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-full hover:bg-white/10 text-slate-400 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">رابط وسيط MQTT (WebSockets WSS)</label>
+                    <input id="input-broker-url" type="text" dir="ltr" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5 text-xs font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">مسار القناة (Base Topic)</label>
+                    <input id="input-base-topic" type="text" dir="ltr" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5 text-xs font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">باسورد الويتر (Waiter PIN)</label>
+                    <input id="input-waiter-pin" type="text" dir="ltr" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5 text-xs font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">باسورد الأدمن (Admin PIN - للوجو واللينك)</label>
+                    <input id="input-admin-pin" type="text" dir="ltr" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5 text-xs font-mono">
+                </div>
+            </div>
+            <div class="flex gap-2 mt-6">
+                <button onclick="saveSettings()" class="flex-1 py-3 rounded-2xl bg-[#1877f2] hover:bg-blue-500 text-white font-bold text-sm transition">
+                    حفظ وإعادة الاتصال
+                </button>
+                <button onclick="closeSettingsModal()" class="px-4 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-200 font-bold text-sm transition">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         JAVASCRIPT ENGINE
+    ====================================================================== -->
+    <script>
+        let deferredInstallPrompt = null;
+        let swRegistration = null;
+
+        function buildAppIconCanvasDataUrl(logoText = '90+', size = 512) {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return buildAppIconSvgDataUrl(logoText);
+
+                const radius = size * 0.24;
+                ctx.fillStyle = '#121214';
+                ctx.beginPath();
+                ctx.roundRect(0, 0, size, size, radius);
+                ctx.fill();
+
+                ctx.fillStyle = '#f4ebd9';
+                ctx.beginPath();
+                ctx.arc(size * 0.5, size * 0.5, size * 0.34, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#1877f2';
+                ctx.lineWidth = Math.max(8, size * 0.035);
+                ctx.stroke();
+
+                ctx.fillStyle = '#334155';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = `800 ${Math.round(size * 0.052)}px Cairo, Arial, sans-serif`;
+                ctx.fillText('LOUNGE', size * 0.5, size * 0.32);
+
+                const safeLabel = String(logoText || '90+').slice(0, 6);
+                ctx.fillStyle = '#09090b';
+                ctx.font = `900 ${Math.round(size * 0.23)}px Cairo, Arial, sans-serif`;
+                ctx.fillText(safeLabel, size * 0.5, size * 0.53);
+
+                ctx.fillStyle = '#334155';
+                ctx.font = `800 ${Math.round(size * 0.045)}px Cairo, Arial, sans-serif`;
+                ctx.fillText('PLUS NINETY', size * 0.5, size * 0.71);
+
+                return canvas.toDataURL('image/png');
+            } catch (e) {
+                return buildAppIconSvgDataUrl(logoText);
+            }
+        }
+
+        function buildAppIconSvgDataUrl(logoText = '90+') {
+            const safeLabel = String(logoText || '90+').slice(0, 6);
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+                <rect width="512" height="512" rx="128" fill="#121214"/>
+                <circle cx="256" cy="256" r="176" fill="#f4ebd9" stroke="#1877f2" stroke-width="18"/>
+                <text x="256" y="168" text-anchor="middle" font-family="Cairo, Arial, sans-serif" font-size="28" font-weight="800" fill="#334155" letter-spacing="4">LOUNGE</text>
+                <text x="256" y="295" text-anchor="middle" font-family="Cairo, Arial, sans-serif" font-size="122" font-weight="900" fill="#09090b">${safeLabel.replace(/[<>&"]/g, '')}</text>
+                <text x="256" y="352" text-anchor="middle" font-family="Cairo, Arial, sans-serif" font-size="24" font-weight="800" fill="#334155" letter-spacing="3">PLUS NINETY</text>
+            </svg>`;
+            return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+        }
+
+        function isRunningAsStandaloneApp() {
+            return (
+                window.matchMedia('(display-mode: standalone)').matches ||
+                window.matchMedia('(display-mode: fullscreen)').matches ||
+                window.navigator.standalone === true
+            );
+        }
+
+        function updateInstallButtonState() {
+            const installBtn = document.getElementById('btn-install-app');
+            if (!installBtn) return;
+            if (isRunningAsStandaloneApp()) {
+                installBtn.innerHTML = '<i class="fa-solid fa-check-circle"></i><span>مثبت كـ App</span>';
+            } else if (deferredInstallPrompt) {
+                installBtn.innerHTML = '<i class="fa-solid fa-download"></i><span>تثبيت التطبيق الآن</span>';
+            } else {
+                installBtn.innerHTML = '<i class="fa-solid fa-download"></i><span>تثبيت التطبيق</span>';
+            }
+        }
+
+        function registerSameOriginServiceWorker() {
+            if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') return;
+            if (window.self !== window.top) return;
+
+            const swSource = [
+                "const CACHE_NAME = 'plus90-lounge-v1';",
+                "self.addEventListener('install', () => { self.skipWaiting(); });",
+                "self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });",
+                "self.addEventListener('fetch', (event) => {",
+                "  if (!event.request || event.request.method !== 'GET') return;",
+                "  const reqUrl = new URL(event.request.url);",
+                "  if (reqUrl.origin !== self.location.origin) return;",
+                "  event.respondWith(",
+                "    fetch(event.request)",
+                "      .then((res) => {",
+                "        if (res && res.status === 200) {",
+                "          const clone = res.clone();",
+                "          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => {});",
+                "        }",
+                "        return res;",
+                "      })",
+                "      .catch(() => caches.match(event.request))",
+                "  );",
+                "});"
+            ].join('\n');
+
+            const swDataUrl = 'data:text/javascript;charset=utf-8,' + encodeURIComponent(swSource);
+            navigator.serviceWorker.register(swDataUrl, { scope: './' })
+                .then((reg) => { swRegistration = reg; })
+                .catch(() => {});
+        }
+
+        function setupPWA(brandName = 'Plus Ninety Lounge', logoText = '90+') {
+            try {
+                const icon192 = buildAppIconCanvasDataUrl(logoText, 192);
+                const icon512 = buildAppIconCanvasDataUrl(logoText, 512);
+                const iconMime = icon512.startsWith('data:image/png') ? 'image/png' : 'image/svg+xml';
+                const roomQuery = encodeURIComponent(defaultRoomId);
+                const startUrl = `./?role=staff&room=${roomQuery}`;
+
+                const manifestObj = {
+                    id: `./?app=plus90-staff&room=${roomQuery}`,
+                    name: `${brandName} - ويتر وأدمن`,
+                    short_name: 'Plus 90 App',
+                    description: 'تطبيق استدعاء الويتر والإدارة لـ Plus Ninety Lounge',
+                    start_url: startUrl,
+                    scope: './',
+                    display: 'standalone',
+                    display_override: ['standalone', 'window-controls-overlay'],
+                    orientation: 'any',
+                    background_color: '#121214',
+                    theme_color: '#121214',
+                    dir: 'rtl',
+                    lang: 'ar',
+                    icons: [
+                        { src: icon192, sizes: '192x192', type: iconMime, purpose: 'any' },
+                        { src: icon512, sizes: '512x512', type: iconMime, purpose: 'any maskable' }
+                    ]
+                };
+
+                const manifestDataUrl = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
+
+                let linkEl = document.querySelector('link[rel="manifest"]');
+                if (!linkEl) {
+                    linkEl = document.createElement('link');
+                    linkEl.rel = 'manifest';
+                    document.head.appendChild(linkEl);
+                }
+                linkEl.href = manifestDataUrl;
+
+                let appleIconEl = document.querySelector('link[rel="apple-touch-icon"]');
+                if (!appleIconEl) {
+                    appleIconEl = document.createElement('link');
+                    appleIconEl.rel = 'apple-touch-icon';
+                    document.head.appendChild(appleIconEl);
+                }
+                appleIconEl.href = icon512;
+
+                registerSameOriginServiceWorker();
+                updateInstallButtonState();
+            } catch (e) {}
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            updateInstallButtonState();
+        });
+
+        window.addEventListener('appinstalled', () => {
+            deferredInstallPrompt = null;
+            updateInstallButtonState();
+            showToast('تم تثبيت التطبيق على الشاشة بنجاح', 'emerald');
+        });
+
+        async function installPWAApp() {
+            if (isRunningAsStandaloneApp()) {
+                showToast('التطبيق مثبت ويعمل كـ Standalone App بالفعل', 'emerald');
+                return;
+            }
+            if (deferredInstallPrompt) {
+                deferredInstallPrompt.prompt();
+                const choice = await deferredInstallPrompt.userChoice;
+                deferredInstallPrompt = null;
+                updateInstallButtonState();
+                if (choice && choice.outcome === 'accepted') {
+                    showToast('تم بدء تثبيت التطبيق على الجهاز...', 'emerald');
+                }
+                return;
+            }
+            showToast('افتح رابط GitHub Pages من Chrome/Edge/Safari واختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية"', 'amber');
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+
+        const rawTable = urlParams.get('table') || hashParams.get('table');
+        const extractedTable = rawTable && !isNaN(parseInt(rawTable, 10)) ? parseInt(rawTable, 10) : null;
+
+        const roleParam = (urlParams.get('role') || urlParams.get('mode') || '').toLowerCase();
+        const isStaffUrlRequested = roleParam === 'staff' || roleParam === 'waiter' || roleParam === 'admin';
+
+        const defaultRoomId = urlParams.get('room') || localStorage.getItem('nidaa_room_id') || 'plus-ninety-lounge';
+        localStorage.setItem('nidaa_room_id', defaultRoomId);
+
+        const AVAILABLE_ROOMS = [
+            { id: 'plus-ninety-lounge', name: 'Plus Ninety Lounge (القاعة الرئيسية)' },
+            ...Array.from({ length: 20 }, (_, idx) => ({
+                id: `room-${idx + 1}`,
+                name: `غرفة ${idx + 1} (Room ${idx + 1})`
+            }))
+        ];
+
+        const DEFAULT_BRANDING = {
+            name: 'Plus Ninety Lounge',
+            logoText: '90+',
+            logoUrl: '',
+            link: 'https://linktr.ee/plusninetylounge',
+            facebookUrl: 'https://www.facebook.com/plus90eg',
+            instagramUrl: 'https://www.instagram.com/plus_ninety_lounge?igsh=MWJiYXkyZ2NiZWQxNg%3D%3D&utm_source=qr',
+            tiktokUrl: 'https://www.tiktok.com/@plusninetylounge',
+            tagline: 'Your second home • 24 Hour Service',
+            bio: 'Plus 90 is your second home where you can gather with your friends, eat, watch TV, and play with 24 hour service.',
+            desc: 'تجمع • أكل • TV • PlayStation • خدمة 24 ساعة'
+        };
+
+        const DEFAULT_CUSTOMER_SCREEN = {
+            heading: 'كيف يمكننا خدمتك الآن في Plus 90؟',
+            noQrMessage: 'يرجى مسح رمز QR الموجود على طاولتك أو غرفتك لبدء الاستدعاء الفوري للنادل.',
+            noQrSimLabel: 'تجربة محاكاة مسح QR لطاولة:',
+            tablePrefix: 'طاولة رقم',
+            qrBadgeText: 'مؤكد عبر رمز QR • خدمة 24 ساعة',
+            cancelButtonText: 'إلغاء',
+            shortcutsLabel: 'طلبات سريعة بضغطة واحدة:',
+            sendButtonText: 'إرسال',
+            notePlaceholder: 'أو اكتب ملاحظتك للنادل هنا...',
+            serviceOrder: ['call_waiter', 'request_bill', 'request_menu', 'clean_table'],
+            services: {
+                call_waiter: { title: 'استدعاء النادل', subtitle: 'حضور مباشر للطاولة', visible: true },
+                request_bill: { title: 'طلب الفاتورة', subtitle: 'كاش أو شبكة / فيزا', visible: true },
+                request_menu: { title: 'إضافة طلبات', subtitle: 'أكل • مشروبات • سناكس', visible: true },
+                clean_table: { title: 'خدمة اللعب / الطاولة', subtitle: 'TV • PlayStation • ترتيب', visible: true }
+            },
+            shortcuts: [
+                { emoji: '💧', label: 'ماء', note: 'ماء بارد' },
+                { emoji: '🧻', label: 'مناديل', note: 'مناديل إضافية' },
+                { emoji: '🎮', label: 'ذراع تحكم', note: 'ذراع تحكم PlayStation إضافي' },
+                { emoji: '📺', label: 'إعداد TV', note: 'تغيير قناة / إعداد TV' }
+            ],
+            showShortcuts: true,
+            showNoteBox: true,
+            showFooter: true
+        };
+
+        let savedBranding = {};
+        let savedCustomerScreen = {};
+        try {
+            savedBranding = JSON.parse(localStorage.getItem('plus90_branding') || '{}');
+            savedCustomerScreen = JSON.parse(localStorage.getItem('plus90_customer_screen') || '{}');
+        } catch (e) {
+            savedBranding = {};
+            savedCustomerScreen = {};
+        }
+
+        const state = {
+            role: isStaffUrlRequested ? 'staff' : 'customer',
+            staffLevel: 'waiter',
+            customerTable: extractedTable,
+            roomId: defaultRoomId,
+            brokerUrl: localStorage.getItem('nidaa_broker') || 'wss://broker.emqx.io:8084/mqtt',
+            baseTopic: localStorage.getItem('nidaa_topic') || `nidaa/restaurant/${defaultRoomId}`,
+            waiterPin: localStorage.getItem('nidaa_waiter_pin') || localStorage.getItem('nidaa_staff_pin') || '1234',
+            adminPin: localStorage.getItem('nidaa_admin_pin') || '9090',
+            branding: { ...DEFAULT_BRANDING, ...savedBranding },
+            customerScreen: { ...DEFAULT_CUSTOMER_SCREEN, ...savedCustomerScreen },
+            mqttConnected: false,
+            soundEnabled: true,
+            completedCount: 0,
+            totalRecordedCount: 0,
+            serviceCounts: {
+                call_waiter: 0,
+                request_bill: 0,
+                request_menu: 0,
+                clean_table: 0,
+                custom_note: 0
+            },
+            callHistory: [],
+            staffSubView: 'calls',
+            activeCalls: {},
+            customerCurrentCallId: null
+        };
+
+        const REQUEST_TYPES = {
+            call_waiter: { label: 'استدعاء النادل', icon: 'fa-bell-concierge', badgeBg: 'bg-amber-50 text-amber-800 border-amber-200' },
+            request_bill: { label: 'طلب الفاتورة', icon: 'fa-file-invoice-dollar', badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+            request_menu: { label: 'إضافة طلب / منيو', icon: 'fa-utensils', badgeBg: 'bg-blue-50 text-blue-800 border-blue-200' },
+            clean_table: { label: 'تنظيف الطاولة', icon: 'fa-sparkles', badgeBg: 'bg-purple-50 text-purple-800 border-purple-200' },
+            custom_note: { label: 'طلب خاص / ملاحظة', icon: 'fa-comment-dots', badgeBg: 'bg-rose-50 text-rose-800 border-rose-200' }
+        };
+
+        let logoTapCount = 0;
+        let logoTapResetTimer = null;
+        let pendingAdminAction = null;
+
+        function handleSecretLogoTap() {
+            logoTapCount++;
+            clearTimeout(logoTapResetTimer);
+            logoTapResetTimer = setTimeout(() => { logoTapCount = 0; }, 2500);
+            if (logoTapCount >= 5) {
+                logoTapCount = 0;
+                openStaffLoginModal();
+            }
+        }
+
+        function openStaffLoginModal() {
+            const modal = document.getElementById('staff-login-modal');
+            const input = document.getElementById('staff-pin-input');
+            const errorEl = document.getElementById('staff-pin-error');
+            input.value = '';
+            errorEl.classList.add('hidden');
+            modal.classList.remove('hidden');
+            setTimeout(() => input.focus(), 100);
+        }
+
+        function closeStaffLoginModal() {
+            document.getElementById('staff-login-modal').classList.add('hidden');
+        }
+
+        function fillQuickPin(level) {
+            const input = document.getElementById('staff-pin-input');
+            if (!input) return;
+            input.value = level === 'admin' ? state.adminPin : state.waiterPin;
+            verifyStaffPin();
+        }
+
+        function verifyStaffPin() {
+            const enteredPin = document.getElementById('staff-pin-input').value.trim();
+            const errorEl = document.getElementById('staff-pin-error');
+
+            if (enteredPin === state.adminPin) {
+                state.staffLevel = 'admin';
+                closeStaffLoginModal();
+                const staffUrl = `${window.location.pathname}?role=staff&room=${encodeURIComponent(defaultRoomId)}`;
+                window.history.replaceState({}, '', staffUrl);
+                applyRoleView('staff');
+                showToast('تم تسجيل الدخول بصلاحية الأدمن (تعديل اللوجو واللينك متاح)', 'emerald');
+            } else if (enteredPin === state.waiterPin) {
+                state.staffLevel = 'waiter';
+                closeStaffLoginModal();
+                const staffUrl = `${window.location.pathname}?role=staff&room=${encodeURIComponent(defaultRoomId)}`;
+                window.history.replaceState({}, '', staffUrl);
+                applyRoleView('staff');
+                showToast('تم تسجيل الدخول إلى بوابة الويتر', 'emerald');
+            } else {
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        function requireAdminPin(actionCallback) {
+            if (state.staffLevel === 'admin') {
+                actionCallback();
+                return;
+            }
+            pendingAdminAction = actionCallback;
+            const modal = document.getElementById('admin-pin-modal');
+            const input = document.getElementById('admin-pin-input');
+            const err = document.getElementById('admin-pin-error');
+            if (!modal || !input || !err) return;
+            input.value = '';
+            err.classList.add('hidden');
+            modal.classList.remove('hidden');
+            setTimeout(() => input.focus(), 80);
+        }
+
+        function closeAdminPinModal() {
+            const modal = document.getElementById('admin-pin-modal');
+            if (modal) modal.classList.add('hidden');
+            pendingAdminAction = null;
+        }
+
+        function verifyAdminPin() {
+            const input = document.getElementById('admin-pin-input');
+            const err = document.getElementById('admin-pin-error');
+            const entered = (input ? input.value : '').trim();
+
+            if (entered === state.adminPin) {
+                state.staffLevel = 'admin';
+                updateAdminBadgeUI();
+                const cb = pendingAdminAction;
+                closeAdminPinModal();
+                showToast('تم التحقق من باسورد الأدمن', 'emerald');
+                if (typeof cb === 'function') cb();
+            } else if (err) {
+                err.classList.remove('hidden');
+            }
+        }
+
+
+
+        const DASHBOARD_STORAGE_KEY_PREFIX = 'plus90_dashboard_state_';
+
+        function getDashboardStorageKey() {
+            return `${DASHBOARD_STORAGE_KEY_PREFIX}${state.roomId || 'default'}`;
+        }
+
+        function saveDashboardState() {
+            try {
+                const payload = {
+                    activeCalls: state.activeCalls || {},
+                    completedCount: Number(state.completedCount || 0),
+                    totalRecordedCount: Number(state.totalRecordedCount || 0),
+                    serviceCounts: state.serviceCounts || {
+                        call_waiter: 0,
+                        request_bill: 0,
+                        request_menu: 0,
+                        clean_table: 0,
+                        custom_note: 0
+                    },
+                    callHistory: Array.isArray(state.callHistory) ? state.callHistory.slice(0, 200) : []
+                };
+                localStorage.setItem(getDashboardStorageKey(), JSON.stringify(payload));
+            } catch (e) {}
+        }
+
+        function loadDashboardState() {
+            try {
+                const raw = localStorage.getItem(getDashboardStorageKey());
+                if (!raw) return;
+                const parsed = JSON.parse(raw);
+                if (!parsed || typeof parsed !== 'object') return;
+
+                if (parsed.activeCalls && typeof parsed.activeCalls === 'object') {
+                    state.activeCalls = parsed.activeCalls;
+                }
+                if (typeof parsed.completedCount === 'number') {
+                    state.completedCount = parsed.completedCount;
+                }
+                if (typeof parsed.totalRecordedCount === 'number') {
+                    state.totalRecordedCount = parsed.totalRecordedCount;
+                }
+                if (parsed.serviceCounts && typeof parsed.serviceCounts === 'object') {
+                    state.serviceCounts = {
+                        call_waiter: Number(parsed.serviceCounts.call_waiter || 0),
+                        request_bill: Number(parsed.serviceCounts.request_bill || 0),
+                        request_menu: Number(parsed.serviceCounts.request_menu || 0),
+                        clean_table: Number(parsed.serviceCounts.clean_table || 0),
+                        custom_note: Number(parsed.serviceCounts.custom_note || 0)
+                    };
+                }
+                if (Array.isArray(parsed.callHistory)) {
+                    state.callHistory = parsed.callHistory;
+                }
+            } catch (e) {}
+        }
+
+        function updateAdminBadgeUI() {
+            const pill = document.getElementById('admin-lock-pill');
+            const dashBadge = document.getElementById('dash-lock-badge');
+            const isAdmin = state.staffLevel === 'admin';
+            if (pill) {
+                pill.textContent = isAdmin ? 'مفتوح' : 'أدمن';
+                pill.className = isAdmin
+                    ? 'text-[10px] bg-emerald-500/30 text-emerald-200 px-1.5 py-0.5 rounded-md'
+                    : 'text-[10px] bg-black/30 px-1.5 py-0.5 rounded-md';
+            }
+            if (dashBadge) {
+                dashBadge.textContent = isAdmin ? 'مفتوح' : 'أدمن';
+                dashBadge.className = isAdmin
+                    ? 'text-[10px] bg-emerald-500/25 text-emerald-200 px-1.5 py-0.5 rounded-md'
+                    : 'text-[10px] bg-black/40 text-[#93c5fd] px-1.5 py-0.5 rounded-md';
+            }
+        }
+
+        function switchStaffSubView(subView) {
+            state.staffSubView = subView === 'dashboard' ? 'dashboard' : 'calls';
+            const callsSec = document.getElementById('waiter-live-calls-section');
+            const dashSec = document.getElementById('admin-dashboard-section');
+            const tabCalls = document.getElementById('tab-waiter-calls');
+            const tabDash = document.getElementById('tab-admin-dashboard');
+
+            if (state.staffSubView === 'dashboard') {
+                if (callsSec) callsSec.classList.add('hidden');
+                if (dashSec) dashSec.classList.remove('hidden');
+                if (tabCalls) tabCalls.className = 'px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#f4ebd9] font-extrabold text-xs sm:text-sm transition flex items-center gap-2 border border-white/10';
+                if (tabDash) tabDash.className = 'px-4 py-2 rounded-xl bg-[#1877f2] text-white font-extrabold text-xs sm:text-sm transition flex items-center gap-2';
+                renderAdminDashboard();
+            } else {
+                if (dashSec) dashSec.classList.add('hidden');
+                if (callsSec) callsSec.classList.remove('hidden');
+                if (tabCalls) tabCalls.className = 'px-4 py-2 rounded-xl bg-[#1877f2] text-white font-extrabold text-xs sm:text-sm transition flex items-center gap-2';
+                if (tabDash) tabDash.className = 'px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#f4ebd9] font-extrabold text-xs sm:text-sm transition flex items-center gap-2 border border-white/10';
+            }
+        }
+
+        function openAdminDashboardTab() {
+            requireAdminPin(() => {
+                switchStaffSubView('dashboard');
+            });
+        }
+
+        function clearCallHistoryLog() {
+            requireAdminPin(() => {
+                state.callHistory = [];
+                state.totalRecordedCount = 0;
+                state.completedCount = 0;
+                state.serviceCounts = {
+                    call_waiter: 0,
+                    request_bill: 0,
+                    request_menu: 0,
+                    clean_table: 0,
+                    custom_note: 0
+                };
+                saveDashboardState();
+                renderWaiterDashboard();
+                renderAdminDashboard();
+                showToast('تم تصفير سجل الإحصائيات والطلبات', 'amber');
+            });
+        }
+
+        function renderAdminDashboard() {
+            const totalEl = document.getElementById('dash-total-requests');
+            const activeEl = document.getElementById('dash-active-calls');
+            const visEl = document.getElementById('dash-visible-services');
+            const brandEl = document.getElementById('dash-brand-status');
+            const linkEl = document.getElementById('dash-brand-link-status');
+            const roomLabelEl = document.getElementById('dash-active-room-label');
+            const previewBtn = document.getElementById('dash-preview-customer-btn');
+
+            const activeCallsList = Object.values(state.activeCalls);
+            const cs = normalizeCustomerScreenState(state.customerScreen);
+            const visibleCount = cs.serviceOrder.filter(k => cs.services[k]?.visible !== false).length;
+
+            if (totalEl) totalEl.textContent = state.totalRecordedCount;
+            if (activeEl) activeEl.textContent = activeCallsList.length;
+            if (visEl) visEl.textContent = `${visibleCount} / ${cs.serviceOrder.length}`;
+            if (brandEl) brandEl.textContent = state.branding.name;
+            if (linkEl) linkEl.textContent = (state.branding.link || '').replace(/^https?:\/\//i, '');
+            if (roomLabelEl) roomLabelEl.textContent = state.roomId;
+            if (previewBtn) previewBtn.href = `${window.location.pathname}?table=1&room=${encodeURIComponent(state.roomId)}`;
+
+            const breakdownEl = document.getElementById('dash-service-breakdown');
+            if (breakdownEl) {
+                const maxVal = Math.max(1, ...Object.values(state.serviceCounts));
+                const keys = ['call_waiter', 'request_bill', 'request_menu', 'clean_table', 'custom_note'];
+                breakdownEl.innerHTML = keys.map(k => {
+                    const count = state.serviceCounts[k] || 0;
+                    const pct = Math.round((count / maxVal) * 100);
+                    const label = cs.services[k]?.title || REQUEST_TYPES[k]?.label || k;
+                    return `
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-bold text-slate-200">${escapeHTML(label)}</span>
+                                <span class="font-mono text-[#93c5fd] font-bold">${count}</span>
+                            </div>
+                            <div class="w-full h-2 rounded-full bg-[#121214] overflow-hidden">
+                                <div class="h-full bg-[#1877f2] rounded-full transition-all" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const summaryEl = document.getElementById('dash-customer-config-summary');
+            if (summaryEl) {
+                const orderedTitles = cs.serviceOrder
+                    .filter(k => cs.services[k]?.visible !== false)
+                    .map(k => cs.services[k]?.title);
+
+                summaryEl.innerHTML = `
+                    <div class="p-3 rounded-xl bg-[#121214] border border-white/10">
+                        <span class="text-slate-400">عنوان الخدمات:</span>
+                        <span class="font-bold text-white mr-1">${escapeHTML(cs.heading)}</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-[#121214] border border-white/10">
+                        <span class="text-slate-400">ترتيب الأيقونات الظاهرة:</span>
+                        <span class="font-bold text-[#f4ebd9] mr-1">${orderedTitles.length ? escapeHTML(orderedTitles.join(' ← ')) : 'لا توجد أيقونات ظاهرة'}</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-[#121214] border border-white/10 flex flex-wrap gap-2">
+                        <span class="px-2.5 py-1 rounded-lg ${cs.showShortcuts ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/5 text-slate-400'}">الطلبات السريعة: ${cs.showShortcuts ? 'مفعل' : 'مخفي'}</span>
+                        <span class="px-2.5 py-1 rounded-lg ${cs.showNoteBox ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/5 text-slate-400'}">حقل الملاحظة: ${cs.showNoteBox ? 'مفعل' : 'مخفي'}</span>
+                        <span class="px-2.5 py-1 rounded-lg ${cs.showFooter ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/5 text-slate-400'}">الفوتر: ${cs.showFooter ? 'مفعل' : 'مخفي'}</span>
+                    </div>
+                `;
+            }
+
+            const tbody = document.getElementById('dash-calls-history-tbody');
+            if (tbody) {
+                if (state.callHistory.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">لا توجد طلبات مسجلة في السجل بعد</td></tr>';
+                } else {
+                    tbody.innerHTML = state.callHistory.map(item => `
+                        <tr>
+                            <td class="py-2.5 px-3 font-black text-[#f4ebd9]">طاولة ${item.table}</td>
+                            <td class="py-2.5 px-3 font-bold text-white">${escapeHTML(cs.services[item.type]?.title || REQUEST_TYPES[item.type]?.label || item.type)}</td>
+                            <td class="py-2.5 px-3 text-slate-300">${item.note ? escapeHTML(item.note) : '-'}</td>
+                            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full bg-white/10 text-[#93c5fd] font-bold">${escapeHTML(item.status)}</span></td>
+                            <td class="py-2.5 px-3 font-mono text-slate-400">${escapeHTML(item.timeStr)}</td>
+                        </tr>
+                    `).join('');
+                }
+            }
+        }
+
+
+        function applyBrandingToUI() {
+            const b = state.branding;
+            document.title = `${b.name} | نظام استدعاء الويتر الذكي QR MQTT`;
+            setupPWA(b.name, b.logoText);
+
+            const safeLogoText = escapeHTML(b.logoText || '90+');
+            const safeLogoUrl = (b.logoUrl || '').trim();
+            const logoMarkup = safeLogoUrl
+                ? `<img src="${escapeHTML(safeLogoUrl)}" alt="${escapeHTML(b.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" class="w-full h-full object-cover"><span style="display:none" class="w-full h-full items-center justify-center text-sm font-black text-slate-950">${safeLogoText}</span>`
+                : `<span class="text-[7px] font-extrabold tracking-widest text-slate-700 uppercase">LOUNGE</span><span class="text-base font-black text-slate-950 leading-none">${safeLogoText}</span>`;
+
+            ['cust-brand-logo', 'noqr-brand-logo', 'locked-brand-logo', 'staff-brand-logo'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = logoMarkup;
+            });
+
+            const nameEl = document.getElementById('cust-brand-name');
+            const tagEl = document.getElementById('cust-brand-tagline');
+            const descEl = document.getElementById('cust-brand-desc');
+            const noqrTitle = document.getElementById('noqr-brand-title');
+            const noqrBio = document.getElementById('noqr-brand-bio');
+            const noqrLink = document.getElementById('noqr-brand-link');
+            const noqrLinkText = document.getElementById('noqr-brand-link-text');
+            const footerLink = document.getElementById('cust-footer-link');
+            const footerBrand = document.getElementById('cust-footer-brand');
+
+            if (nameEl) nameEl.textContent = b.name;
+            if (tagEl) tagEl.textContent = b.tagline;
+            if (descEl) descEl.textContent = b.desc;
+            if (noqrTitle) noqrTitle.textContent = `أهلاً بك في ${b.name}`;
+            if (noqrBio) noqrBio.textContent = b.bio;
+
+            const cleanLink = (b.link || '').trim() || DEFAULT_BRANDING.link;
+            const displayLink = cleanLink.replace(/^https?:\/\//i, '');
+            if (noqrLink) noqrLink.href = cleanLink;
+            if (noqrLinkText) noqrLinkText.textContent = displayLink;
+            if (footerLink) {
+                footerLink.href = cleanLink;
+                footerLink.textContent = displayLink;
+            }
+            if (footerBrand) footerBrand.textContent = `${b.name} • 24H`;
+
+            const fbUrl = (b.facebookUrl || '').trim() || DEFAULT_BRANDING.facebookUrl;
+            const igUrl = (b.instagramUrl || '').trim() || DEFAULT_BRANDING.instagramUrl;
+            const ttUrl = (b.tiktokUrl || '').trim() || DEFAULT_BRANDING.tiktokUrl;
+
+            ['social-fb-noqr', 'social-fb-footer'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.href = fbUrl;
+            });
+            ['social-ig-noqr', 'social-ig-footer'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.href = igUrl;
+            });
+            ['social-tt-noqr', 'social-tt-footer'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.href = ttUrl;
+            });
+        }
+
+        function toggleSocialMenu(menuId, event) {
+            if (event) event.stopPropagation();
+            const targetMenu = document.getElementById(menuId);
+            const allMenus = ['noqr-social-menu', 'footer-social-menu'];
+            allMenus.forEach((id) => {
+                if (id !== menuId) {
+                    const m = document.getElementById(id);
+                    if (m) m.classList.add('hidden');
+                }
+            });
+            if (targetMenu) targetMenu.classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', () => {
+            ['noqr-social-menu', 'footer-social-menu'].forEach((id) => {
+                const m = document.getElementById(id);
+                if (m) m.classList.add('hidden');
+            });
+        });
+
+        function openBrandingModal() {
+            requireAdminPin(() => {
+                document.getElementById('brand-input-name').value = state.branding.name;
+                document.getElementById('brand-input-logo-text').value = state.branding.logoText;
+                document.getElementById('brand-input-logo-url').value = state.branding.logoUrl;
+                document.getElementById('brand-input-link').value = state.branding.link;
+                document.getElementById('brand-input-facebook').value = state.branding.facebookUrl || DEFAULT_BRANDING.facebookUrl;
+                document.getElementById('brand-input-instagram').value = state.branding.instagramUrl || DEFAULT_BRANDING.instagramUrl;
+                document.getElementById('brand-input-tiktok').value = state.branding.tiktokUrl || DEFAULT_BRANDING.tiktokUrl;
+                document.getElementById('brand-input-tagline').value = state.branding.tagline;
+                document.getElementById('brand-input-bio').value = state.branding.bio;
+                document.getElementById('brand-input-desc').value = state.branding.desc;
+                document.getElementById('branding-modal').classList.remove('hidden');
+            });
+        }
+
+        function closeBrandingModal() {
+            document.getElementById('branding-modal').classList.add('hidden');
+        }
+
+        function saveBrandingSettings() {
+            requireAdminPin(() => {
+                state.branding = {
+                    name: document.getElementById('brand-input-name').value.trim() || DEFAULT_BRANDING.name,
+                    logoText: document.getElementById('brand-input-logo-text').value.trim() || DEFAULT_BRANDING.logoText,
+                    logoUrl: document.getElementById('brand-input-logo-url').value.trim(),
+                    link: document.getElementById('brand-input-link').value.trim() || DEFAULT_BRANDING.link,
+                    facebookUrl: document.getElementById('brand-input-facebook').value.trim() || DEFAULT_BRANDING.facebookUrl,
+                    instagramUrl: document.getElementById('brand-input-instagram').value.trim() || DEFAULT_BRANDING.instagramUrl,
+                    tiktokUrl: document.getElementById('brand-input-tiktok').value.trim() || DEFAULT_BRANDING.tiktokUrl,
+                    tagline: document.getElementById('brand-input-tagline').value.trim() || DEFAULT_BRANDING.tagline,
+                    bio: document.getElementById('brand-input-bio').value.trim() || DEFAULT_BRANDING.bio,
+                    desc: document.getElementById('brand-input-desc').value.trim() || DEFAULT_BRANDING.desc
+                };
+                localStorage.setItem('plus90_branding', JSON.stringify(state.branding));
+                applyBrandingToUI();
+                if (state.role === 'staff') renderAdminDashboard();
+                closeBrandingModal();
+                showToast('تم حفظ اللوجو واللينك بنجاح', 'emerald');
+            });
+        }
+
+        function resetBrandingDefaults() {
+            requireAdminPin(() => {
+                state.branding = { ...DEFAULT_BRANDING };
+                localStorage.setItem('plus90_branding', JSON.stringify(state.branding));
+                applyBrandingToUI();
+                if (state.role === 'staff') renderAdminDashboard();
+                closeBrandingModal();
+                showToast('تمت استعادة اللوجو واللينك الافتراضي', 'amber');
+            });
+        }
+
+        let draftCustomerScreen = null;
+
+        function normalizeCustomerScreenState(raw) {
+            const src = raw || {};
+            const baseOrder = ['call_waiter', 'request_bill', 'request_menu', 'clean_table'];
+            const savedOrder = Array.isArray(src.serviceOrder) ? src.serviceOrder : [];
+            const mergedOrder = [
+                ...savedOrder.filter((k) => baseOrder.includes(k)),
+                ...baseOrder.filter((k) => !savedOrder.includes(k))
+            ];
+
+            const mergedServices = {};
+            baseOrder.forEach((key) => {
+                const defSvc = DEFAULT_CUSTOMER_SCREEN.services[key];
+                const rawSvc = (src.services && src.services[key]) || {};
+                const legacyVisibleMap = {
+                    call_waiter: src.showCallWaiter,
+                    request_bill: src.showRequestBill,
+                    request_menu: src.showRequestMenu,
+                    clean_table: src.showCleanTable
+                };
+                const vis = typeof rawSvc.visible === 'boolean'
+                    ? rawSvc.visible
+                    : (typeof legacyVisibleMap[key] === 'boolean' ? legacyVisibleMap[key] : defSvc.visible);
+
+                mergedServices[key] = {
+                    title: (rawSvc.title || '').trim() || defSvc.title,
+                    subtitle: (rawSvc.subtitle || '').trim() || defSvc.subtitle,
+                    visible: vis
+                };
+            });
+
+            const rawShortcuts = Array.isArray(src.shortcuts) && src.shortcuts.length > 0
+                ? src.shortcuts
+                : DEFAULT_CUSTOMER_SCREEN.shortcuts;
+
+            return {
+                heading: (src.heading || '').trim() || DEFAULT_CUSTOMER_SCREEN.heading,
+                noQrMessage: (src.noQrMessage || '').trim() || DEFAULT_CUSTOMER_SCREEN.noQrMessage,
+                noQrSimLabel: (src.noQrSimLabel || '').trim() || DEFAULT_CUSTOMER_SCREEN.noQrSimLabel,
+                tablePrefix: (src.tablePrefix || '').trim() || DEFAULT_CUSTOMER_SCREEN.tablePrefix,
+                qrBadgeText: (src.qrBadgeText || '').trim() || DEFAULT_CUSTOMER_SCREEN.qrBadgeText,
+                cancelButtonText: (src.cancelButtonText || '').trim() || DEFAULT_CUSTOMER_SCREEN.cancelButtonText,
+                shortcutsLabel: (src.shortcutsLabel || '').trim() || DEFAULT_CUSTOMER_SCREEN.shortcutsLabel,
+                sendButtonText: (src.sendButtonText || '').trim() || DEFAULT_CUSTOMER_SCREEN.sendButtonText,
+                notePlaceholder: (src.notePlaceholder || '').trim() || DEFAULT_CUSTOMER_SCREEN.notePlaceholder,
+                serviceOrder: mergedOrder,
+                services: mergedServices,
+                shortcuts: rawShortcuts.map((sc, idx) => {
+                    const defSc = DEFAULT_CUSTOMER_SCREEN.shortcuts[idx] || { emoji: '✨', label: 'طلب سريع', note: 'طلب سريع' };
+                    return {
+                        emoji: (sc.emoji || '').trim() || defSc.emoji,
+                        label: (sc.label || '').trim() || defSc.label,
+                        note: (sc.note || '').trim() || (sc.label || '').trim() || defSc.note
+                    };
+                }),
+                showShortcuts: src.showShortcuts !== false,
+                showNoteBox: src.showNoteBox !== false,
+                showFooter: src.showFooter !== false
+            };
+        }
+
+        state.customerScreen = normalizeCustomerScreenState(state.customerScreen);
+
+        function applyCustomerScreenToUI() {
+            const cs = normalizeCustomerScreenState(state.customerScreen);
+            state.customerScreen = cs;
+
+            const setText = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = val;
+            };
+
+            setText('customer-service-heading', cs.heading);
+            setText('noqr-guide-text', cs.noQrMessage);
+            setText('noqr-sim-label', cs.noQrSimLabel);
+            setText('locked-table-prefix', cs.tablePrefix);
+            setText('locked-qr-badge-text', cs.qrBadgeText);
+            setText('btn-cust-cancel-call', cs.cancelButtonText);
+            setText('customer-shortcuts-label', cs.shortcutsLabel);
+            setText('cust-send-btn-text', cs.sendButtonText);
+
+            const noteInput = document.getElementById('customer-note-input');
+            if (noteInput) noteInput.placeholder = cs.notePlaceholder;
+
+            const grid = document.getElementById('customer-service-grid');
+            if (grid) {
+                cs.serviceOrder.forEach((key) => {
+                    const btn = grid.querySelector(`[data-service-key="${key}"]`);
+                    if (!btn) return;
+                    const svc = cs.services[key];
+                    const titleEl = btn.querySelector('.svc-title');
+                    const subEl = btn.querySelector('.svc-subtitle');
+                    if (titleEl) titleEl.textContent = svc.title;
+                    if (subEl) subEl.textContent = svc.subtitle;
+                    if (svc.visible === false) btn.classList.add('hidden');
+                    else btn.classList.remove('hidden');
+                    grid.appendChild(btn);
+                });
+            }
+
+            const shortcutsList = document.getElementById('customer-shortcuts-list');
+            if (shortcutsList) {
+                shortcutsList.innerHTML = cs.shortcuts.map((sc) => `
+                    <button type="button" onclick="sendQuickShortcut('${escapeHTML(sc.note)}')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition">
+                        ${escapeHTML(sc.emoji)} ${escapeHTML(sc.label)}
+                    </button>
+                `).join('');
+            }
+
+            const toggleMap = [
+                ['customer-shortcuts-row', cs.showShortcuts],
+                ['customer-custom-note-box', cs.showNoteBox],
+                ['customer-footer-box', cs.showFooter]
+            ];
+
+            toggleMap.forEach(([id, visible]) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (visible === false) el.classList.add('hidden');
+                else el.classList.remove('hidden');
+            });
+
+            const noteSection = document.getElementById('customer-note-section');
+            if (noteSection) {
+                if (cs.showShortcuts === false && cs.showNoteBox === false) {
+                    noteSection.classList.add('hidden');
+                } else {
+                    noteSection.classList.remove('hidden');
+                }
+            }
+        }
+
+        function renderCustomerScreenDraftEditors() {
+            if (!draftCustomerScreen) return;
+
+            const orderContainer = document.getElementById('cs-services-order-list');
+            if (orderContainer) {
+                orderContainer.innerHTML = draftCustomerScreen.serviceOrder.map((key, idx) => {
+                    const svc = draftCustomerScreen.services[key];
+                    return `
+                        <div class="bg-[#121214] border border-white/10 rounded-xl p-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
+                            <div class="flex items-center gap-1 shrink-0">
+                                <button type="button" onclick="moveServiceIcon(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 disabled:opacity-30 text-white flex items-center justify-center">
+                                    <i class="fa-solid fa-arrow-up"></i>
+                                </button>
+                                <button type="button" onclick="moveServiceIcon(${idx}, 1)" ${idx === draftCustomerScreen.serviceOrder.length - 1 ? 'disabled' : ''} class="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 disabled:opacity-30 text-white flex items-center justify-center">
+                                    <i class="fa-solid fa-arrow-down"></i>
+                                </button>
+                                <label class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 cursor-pointer text-[11px] text-slate-300">
+                                    <input type="checkbox" onchange="toggleDraftServiceVisible('${key}', this.checked)" ${svc.visible !== false ? 'checked' : ''} class="accent-[#1877f2]">
+                                    <span>ظاهر</span>
+                                </label>
+                            </div>
+                            <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                <input type="text" value="${escapeHTML(svc.title)}" oninput="updateDraftServiceField('${key}', 'title', this.value)" placeholder="اسم الزر" class="bg-[#1b1b1f] text-white border border-white/10 rounded-lg px-2.5 py-1.5">
+                                <input type="text" value="${escapeHTML(svc.subtitle)}" oninput="updateDraftServiceField('${key}', 'subtitle', this.value)" placeholder="الوصف الفرعي" class="bg-[#1b1b1f] text-white border border-white/10 rounded-lg px-2.5 py-1.5">
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const shortcutsContainer = document.getElementById('cs-shortcuts-editor-list');
+            if (shortcutsContainer) {
+                shortcutsContainer.innerHTML = draftCustomerScreen.shortcuts.map((sc, idx) => `
+                    <div class="bg-[#121214] border border-white/10 rounded-xl p-2 grid grid-cols-12 gap-1.5 items-center">
+                        <input type="text" value="${escapeHTML(sc.emoji)}" oninput="updateDraftShortcutField(${idx}, 'emoji', this.value)" class="col-span-2 bg-[#1b1b1f] text-white border border-white/10 rounded-lg px-2 py-1.5 text-center">
+                        <input type="text" value="${escapeHTML(sc.label)}" oninput="updateDraftShortcutField(${idx}, 'label', this.value)" placeholder="الاسم" class="col-span-4 bg-[#1b1b1f] text-white border border-white/10 rounded-lg px-2.5 py-1.5">
+                        <input type="text" value="${escapeHTML(sc.note)}" oninput="updateDraftShortcutField(${idx}, 'note', this.value)" placeholder="نص الطلب للنادل" class="col-span-6 bg-[#1b1b1f] text-white border border-white/10 rounded-lg px-2.5 py-1.5">
+                    </div>
+                `).join('');
+            }
+        }
+
+        function syncDraftTextsFromInputs() {
+            if (!draftCustomerScreen) return;
+            draftCustomerScreen.heading = document.getElementById('cs-heading-input').value;
+            draftCustomerScreen.tablePrefix = document.getElementById('cs-table-prefix-input').value;
+            draftCustomerScreen.qrBadgeText = document.getElementById('cs-qr-badge-input').value;
+            draftCustomerScreen.cancelButtonText = document.getElementById('cs-cancel-text-input').value;
+            draftCustomerScreen.shortcutsLabel = document.getElementById('cs-shortcuts-label-input').value;
+            draftCustomerScreen.sendButtonText = document.getElementById('cs-send-text-input').value;
+            draftCustomerScreen.notePlaceholder = document.getElementById('cs-placeholder-input').value;
+            draftCustomerScreen.noQrMessage = document.getElementById('cs-noqr-msg-input').value;
+            draftCustomerScreen.noQrSimLabel = document.getElementById('cs-noqr-sim-input').value;
+        }
+
+        function moveServiceIcon(index, delta) {
+            if (!draftCustomerScreen) return;
+            syncDraftTextsFromInputs();
+            const targetIdx = index + delta;
+            if (targetIdx < 0 || targetIdx >= draftCustomerScreen.serviceOrder.length) return;
+            const arr = draftCustomerScreen.serviceOrder;
+            [arr[index], arr[targetIdx]] = [arr[targetIdx], arr[index]];
+            renderCustomerScreenDraftEditors();
+        }
+
+        function toggleDraftServiceVisible(key, checked) {
+            if (!draftCustomerScreen || !draftCustomerScreen.services[key]) return;
+            draftCustomerScreen.services[key].visible = checked;
+        }
+
+        function updateDraftServiceField(key, field, value) {
+            if (!draftCustomerScreen || !draftCustomerScreen.services[key]) return;
+            draftCustomerScreen.services[key][field] = value;
+        }
+
+        function updateDraftShortcutField(idx, field, value) {
+            if (!draftCustomerScreen || !draftCustomerScreen.shortcuts[idx]) return;
+            draftCustomerScreen.shortcuts[idx][field] = value;
+        }
+
+        function openCustomerScreenModal() {
+            requireAdminPin(() => {
+                const cs = normalizeCustomerScreenState(state.customerScreen);
+                draftCustomerScreen = JSON.parse(JSON.stringify(cs));
+
+                document.getElementById('cs-heading-input').value = cs.heading;
+                document.getElementById('cs-table-prefix-input').value = cs.tablePrefix;
+                document.getElementById('cs-qr-badge-input').value = cs.qrBadgeText;
+                document.getElementById('cs-cancel-text-input').value = cs.cancelButtonText;
+                document.getElementById('cs-shortcuts-label-input').value = cs.shortcutsLabel;
+                document.getElementById('cs-send-text-input').value = cs.sendButtonText;
+                document.getElementById('cs-placeholder-input').value = cs.notePlaceholder;
+                document.getElementById('cs-noqr-msg-input').value = cs.noQrMessage;
+                document.getElementById('cs-noqr-sim-input').value = cs.noQrSimLabel;
+
+                document.getElementById('cs-show-shortcuts').checked = cs.showShortcuts !== false;
+                document.getElementById('cs-show-note-box').checked = cs.showNoteBox !== false;
+                document.getElementById('cs-show-footer').checked = cs.showFooter !== false;
+
+                renderCustomerScreenDraftEditors();
+                document.getElementById('customer-screen-modal').classList.remove('hidden');
+            });
+        }
+
+        function closeCustomerScreenModal() {
+            draftCustomerScreen = null;
+            document.getElementById('customer-screen-modal').classList.add('hidden');
+        }
+
+        function saveCustomerScreenSettings() {
+            requireAdminPin(() => {
+                syncDraftTextsFromInputs();
+                const base = draftCustomerScreen || state.customerScreen;
+                state.customerScreen = normalizeCustomerScreenState({
+                    ...base,
+                    showShortcuts: document.getElementById('cs-show-shortcuts').checked,
+                    showNoteBox: document.getElementById('cs-show-note-box').checked,
+                    showFooter: document.getElementById('cs-show-footer').checked
+                });
+                localStorage.setItem('plus90_customer_screen', JSON.stringify(state.customerScreen));
+                applyCustomerScreenToUI();
+                if (state.role === 'staff') renderAdminDashboard();
+                closeCustomerScreenModal();
+                showToast('تم حفظ إعدادات شاشة العميل بنجاح', 'emerald');
+            });
+        }
+
+        function resetCustomerScreenSettings() {
+            requireAdminPin(() => {
+                state.customerScreen = normalizeCustomerScreenState(DEFAULT_CUSTOMER_SCREEN);
+                localStorage.setItem('plus90_customer_screen', JSON.stringify(state.customerScreen));
+                applyCustomerScreenToUI();
+                if (state.role === 'staff') renderAdminDashboard();
+                closeCustomerScreenModal();
+                showToast('تمت استعادة إعدادات شاشة العميل الافتراضية', 'amber');
+            });
+        }
+
+        function exitStaffMode() {
+            state.staffLevel = 'waiter';
+            updateAdminBadgeUI();
+            const tableQuery = state.customerTable ? `table=${state.customerTable}&` : '';
+            const cleanUrl = `${window.location.pathname}?${tableQuery}room=${encodeURIComponent(defaultRoomId)}`;
+            window.history.replaceState({}, '', cleanUrl);
+            applyRoleView('customer');
+            showToast('تم الخروج إلى شاشة العميل المعزولة', 'slate');
+        }
+
+        function applyRoleView(role) {
+            state.role = role;
+            const staffHeader = document.getElementById('staff-header');
+            const custView = document.getElementById('view-customer');
+            const waitView = document.getElementById('view-waiter');
+
+            if (role === 'staff') {
+                staffHeader.classList.remove('hidden');
+                custView.classList.add('hidden');
+                waitView.classList.remove('hidden');
+
+                const previewLink = document.getElementById('link-open-customer-tab');
+                if (previewLink) {
+                    previewLink.href = `${window.location.pathname}?table=1&room=${encodeURIComponent(state.roomId)}`;
+                }
+                const channelEl = document.getElementById('stat-channel');
+                if (channelEl) channelEl.textContent = state.roomId;
+                updateAdminBadgeUI();
+                renderWaiterDashboard();
+            } else {
+                staffHeader.classList.add('hidden');
+                waitView.classList.add('hidden');
+                custView.classList.remove('hidden');
+                renderCustomerTableState();
+                renderCustomerActiveStatus();
+            }
+        }
+
+        let audioCtx = null;
+        function playNotificationChime(type = 'new_call') {
+            if (!state.soundEnabled) return;
+            try {
+                if (!audioCtx) {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContextClass) audioCtx = new AudioContextClass();
+                }
+                if (!audioCtx) return;
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'new_call') {
+                    // رنة جرس مزدوجة أعلى وأطول لتنبيه النادل بوضوح
+                    const notes = [
+                        { freq: 987.77, start: 0, dur: 0.42 },
+                        { freq: 1318.51, start: 0.24, dur: 0.48 },
+                        { freq: 987.77, start: 0.62, dur: 0.45 },
+                        { freq: 1318.51, start: 0.88, dur: 0.75 }
+                    ];
+
+                    notes.forEach((n) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(n.freq, now + n.start);
+
+                        gain.gain.setValueAtTime(0.001, now + n.start);
+                        gain.gain.linearRampToValueAtTime(0.65, now + n.start + 0.03);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + n.start + n.dur);
+
+                        osc.start(now + n.start);
+                        osc.stop(now + n.start + n.dur + 0.03);
+                    });
+                } else {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(783.99, now);
+                    gain.gain.setValueAtTime(0.35, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                    osc.start(now);
+                    osc.stop(now + 0.45);
+                }
+            } catch (err) {}
+        }
+
+        function toggleSound() {
+            state.soundEnabled = !state.soundEnabled;
+            const icon = document.getElementById('icon-sound');
+            if (state.soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high';
+                playNotificationChime('ack');
+                showToast('تم تفعيل التنبيهات الصوتية', 'amber');
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                showToast('تم كتم الصوت', 'slate');
+            }
+        }
+
+        let mqttClient = null;
+        let localChannel = null;
+        const processedMessageIds = new Set();
+
+        try {
+            if ('BroadcastChannel' in window) {
+                localChannel = new BroadcastChannel(`nidaa_sync_${state.roomId}`);
+                localChannel.onmessage = (event) => {
+                    if (event.data) handleIncomingEvent(event.data);
+                };
+            }
+        } catch (e) {}
+
+        function updateMQTTStatusUI(status) {
+            const staffDot = document.getElementById('staff-mqtt-dot');
+            const staffText = document.getElementById('staff-mqtt-text');
+            const custDot = document.getElementById('cust-mqtt-dot');
+            const custText = document.getElementById('cust-mqtt-text');
+
+            if (status === 'connected') {
+                if (staffDot) staffDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+                if (staffText) staffText.textContent = 'متصل MQTT';
+                if (custDot) custDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                if (custText) custText.textContent = 'متصل مباشرة';
+            } else if (status === 'connecting') {
+                if (staffDot) staffDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+                if (staffText) staffText.textContent = 'جاري الاتصال...';
+                if (custDot) custDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+                if (custText) custText.textContent = 'جاري الاتصال...';
+            } else {
+                if (staffDot) staffDot.className = 'w-2.5 h-2.5 rounded-full bg-blue-400';
+                if (staffText) staffText.textContent = 'وضع المزامنة المحلية';
+                if (custDot) custDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                if (custText) custText.textContent = 'جاهز للخدمة';
+            }
+        }
+
+        function initMQTT() {
+            updateMQTTStatusUI('connecting');
+            if (mqttClient) {
+                try { mqttClient.end(true); } catch (e) {}
+            }
+            if (typeof mqtt === 'undefined') {
+                updateMQTTStatusUI('offline');
+                return;
+            }
+            try {
+                const clientId = 'nidaa_' + Math.random().toString(16).substr(2, 8);
+                mqttClient = mqtt.connect(state.brokerUrl, {
+                    clientId,
+                    clean: true,
+                    connectTimeout: 8000,
+                    reconnectPeriod: 4000
+                });
+                mqttClient.on('connect', () => {
+                    state.mqttConnected = true;
+                    updateMQTTStatusUI('connected');
+                    mqttClient.subscribe(`${state.baseTopic}/tables/#`, { qos: 1 });
+                });
+                mqttClient.on('message', (topic, message) => {
+                    try {
+                        handleIncomingEvent(JSON.parse(message.toString()));
+                    } catch (err) {}
+                });
+                mqttClient.on('error', () => {
+                    state.mqttConnected = false;
+                    updateMQTTStatusUI('offline');
+                });
+                mqttClient.on('offline', () => {
+                    state.mqttConnected = false;
+                    updateMQTTStatusUI('offline');
+                });
+            } catch (err) {
+                state.mqttConnected = false;
+                updateMQTTStatusUI('offline');
+            }
+        }
+
+        function publishEvent(subTopic, payload) {
+            const eventMsg = {
+                ...payload,
+                eventId: payload.eventId || ('evt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6))
+            };
+            handleIncomingEvent(eventMsg);
+            if (localChannel) {
+                try { localChannel.postMessage(eventMsg); } catch (e) {}
+            }
+            if (mqttClient && state.mqttConnected) {
+                try {
+                    mqttClient.publish(`${state.baseTopic}/${subTopic}`, JSON.stringify(eventMsg), { qos: 1 });
+                } catch (e) {}
+            }
+        }
+
+        function handleIncomingEvent(data) {
+            if (!data || !data.action) return;
+            if (data.eventId) {
+                if (processedMessageIds.has(data.eventId)) return;
+                processedMessageIds.add(data.eventId);
+                if (processedMessageIds.size > 300) {
+                    const first = processedMessageIds.values().next().value;
+                    processedMessageIds.delete(first);
+                }
+            }
+
+            if (data.action === 'NEW_CALL') {
+                const isNew = !state.activeCalls[data.table] || state.activeCalls[data.table].id !== data.id;
+                const callType = data.type || 'call_waiter';
+                state.activeCalls[data.table] = {
+                    id: data.id,
+                    table: Number(data.table),
+                    type: callType,
+                    note: data.note || '',
+                    timestamp: data.timestamp || Date.now(),
+                    status: 'pending'
+                };
+                if (isNew) {
+                    state.totalRecordedCount++;
+                    state.serviceCounts[callType] = (state.serviceCounts[callType] || 0) + 1;
+                    state.callHistory.unshift({
+                        id: data.id,
+                        table: Number(data.table),
+                        type: callType,
+                        note: data.note || '',
+                        status: 'بانتظار النادل',
+                        timeStr: new Date(data.timestamp || Date.now()).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+                    });
+                    if (state.callHistory.length > 200) state.callHistory.pop();
+                }
+                saveDashboardState();
+                if (isNew && state.role === 'staff') {
+                    playNotificationChime('new_call');
+                    const reqLabel = REQUEST_TYPES[data.type]?.label || 'طلب خدمة';
+                    const toastMsg = `نداء جديد من طاولة ${data.table}: ${reqLabel}`;
+                    showToast(toastMsg, 'amber');
+                    const bodyText = data.note ? `${reqLabel} — ${data.note}` : `${reqLabel} • ${state.roomId}`;
+                    triggerMobileScreenNotification(`طاولة ${data.table} • ${state.branding?.name || 'Plus Ninety Lounge'}`, bodyText, `call-${data.table}`);
+                }
+            } else if (data.action === 'ACK_CALL') {
+                if (state.activeCalls[data.table]) {
+                    state.activeCalls[data.table].status = 'acknowledged';
+                    const histItem = state.callHistory.find(h => h.table === Number(data.table) && h.status === 'بانتظار النادل');
+                    if (histItem) histItem.status = 'جاري التنفيذ';
+                    saveDashboardState();
+                    if (state.role === 'customer' && Number(data.table) === state.customerTable) {
+                        playNotificationChime('ack');
+                        showToast('النادل استلم طلبك وهو في الطريق إليك الآن!', 'emerald');
+                        triggerMobileScreenNotification(state.branding?.name || 'Plus Ninety Lounge', 'النادل استلم طلبك وهو في الطريق إليك الآن!', `ack-${data.table}`);
+                    }
+                }
+            } else if (data.action === 'COMPLETE_CALL') {
+                if (state.activeCalls[data.table]) {
+                    delete state.activeCalls[data.table];
+                    state.completedCount++;
+                    const histItem = state.callHistory.find(h => h.table === Number(data.table) && h.status !== 'تم التنفيذ');
+                    if (histItem) histItem.status = 'تم التنفيذ';
+                    saveDashboardState();
+                    if (state.role === 'customer' && Number(data.table) === state.customerTable) {
+                        showToast('تم تنفيذ طلبك بنجاح، نتمنى لك وقتاً ممتعاً!', 'emerald');
+                    }
+                }
+            } else if (data.action === 'CANCEL_CALL') {
+                if (state.activeCalls[data.table]) {
+                    delete state.activeCalls[data.table];
+                    saveDashboardState();
+                }
+            }
+
+            if (state.role === 'staff') {
+                renderWaiterDashboard();
+                if (state.staffSubView === 'dashboard') {
+                    renderAdminDashboard();
+                }
+            } else {
+                renderCustomerActiveStatus();
+            }
+        }
+
+        function simulateScanTable(tableNum) {
+            state.customerTable = tableNum;
+            const newUrl = `${window.location.pathname}?table=${tableNum}&room=${encodeURIComponent(state.roomId)}`;
+            window.history.replaceState({}, '', newUrl);
+            renderCustomerTableState();
+            renderCustomerActiveStatus();
+            showToast(`تم مسح QR طاولة رقم ${tableNum} (${state.roomId})`, 'emerald');
+        }
+
+        function renderCustomerTableState() {
+            const noQrScreen = document.getElementById('customer-no-qr-screen');
+            const tableInterface = document.getElementById('customer-table-interface');
+            const lockedNumEl = document.getElementById('locked-table-number');
+
+            if (!noQrScreen || !tableInterface) return;
+
+            if (state.customerTable && state.customerTable > 0) {
+                noQrScreen.classList.add('hidden');
+                tableInterface.classList.remove('hidden');
+                if (lockedNumEl) lockedNumEl.textContent = state.customerTable;
+            } else {
+                tableInterface.classList.add('hidden');
+                noQrScreen.classList.remove('hidden');
+            }
+        }
+
+        function sendCustomerRequest(type, customNote = '') {
+            if (!state.customerTable) return;
+            const noteInput = document.getElementById('customer-note-input');
+            const finalNote = customNote || (noteInput ? noteInput.value.trim() : '');
+            if (noteInput && !customNote) noteInput.value = '';
+
+            const callId = 'call_' + Date.now();
+            state.customerCurrentCallId = callId;
+
+            publishEvent(`tables/${state.customerTable}`, {
+                action: 'NEW_CALL',
+                id: callId,
+                table: state.customerTable,
+                type,
+                note: finalNote,
+                timestamp: Date.now()
+            });
+
+            showToast(`تم إرسال طلبك (${REQUEST_TYPES[type]?.label || 'خدمة'}) لطاولة ${state.customerTable}`, 'amber');
+        }
+
+        function sendQuickShortcut(itemText) {
+            sendCustomerRequest('custom_note', itemText);
+        }
+
+        function sendCustomNoteRequest() {
+            const noteInput = document.getElementById('customer-note-input');
+            const text = noteInput ? noteInput.value.trim() : '';
+            if (!text) {
+                showToast('يرجى كتابة ملاحظتك أولاً', 'slate');
+                return;
+            }
+            sendCustomerRequest('custom_note', text);
+        }
+
+        function cancelCustomerCall() {
+            if (!state.customerTable || !state.activeCalls[state.customerTable]) return;
+            publishEvent(`tables/${state.customerTable}`, {
+                action: 'CANCEL_CALL',
+                table: state.customerTable
+            });
+            showToast('تم إلغاء الطلب', 'slate');
+        }
+
+        function renderCustomerActiveStatus() {
+            const card = document.getElementById('customer-status-card');
+            if (!card || !state.customerTable) return;
+
+            const activeCall = state.activeCalls[state.customerTable];
+            if (!activeCall) {
+                card.classList.add('hidden');
+                return;
+            }
+
+            card.classList.remove('hidden');
+            const iconBox = document.getElementById('cust-status-icon-box');
+            const icon = document.getElementById('cust-status-icon');
+            const badge = document.getElementById('cust-status-badge');
+            const title = document.getElementById('cust-status-title');
+            const desc = document.getElementById('cust-status-desc');
+            const reqInfo = REQUEST_TYPES[activeCall.type] || REQUEST_TYPES.call_waiter;
+
+            if (activeCall.status === 'acknowledged') {
+                card.className = 'rounded-3xl p-5 border-2 bg-[#162722] border-emerald-400 transition-all animate-slide-in';
+                iconBox.className = 'w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-xl shrink-0';
+                icon.className = 'fa-solid fa-person-walking';
+                badge.className = 'text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300';
+                badge.textContent = 'تم الاستلام';
+                title.textContent = 'النادل في الطريق إليك الآن!';
+                desc.textContent = `الطلب: ${reqInfo.label}${activeCall.note ? ' (' + activeCall.note + ')' : ''}`;
+            } else {
+                card.className = 'rounded-3xl p-5 border-2 bg-[#262116] border-amber-400 animate-pulse-ring transition-all animate-slide-in';
+                iconBox.className = 'w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl shrink-0';
+                icon.className = `fa-solid ${reqInfo.icon}`;
+                badge.className = 'text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300';
+                badge.textContent = 'بانتظار النادل';
+                title.textContent = `تم إرسال: ${reqInfo.label}`;
+                desc.textContent = activeCall.note ? `ملاحظتك: ${activeCall.note}` : 'جاري تنبيه طاقم الخدمة فوراً...';
+            }
+        }
+
+        function acknowledgeCall(tableNum) {
+            publishEvent(`tables/${tableNum}`, { action: 'ACK_CALL', table: Number(tableNum) });
+        }
+
+        function completeCall(tableNum) {
+            publishEvent(`tables/${tableNum}`, { action: 'COMPLETE_CALL', table: Number(tableNum) });
+        }
+
+        function simulateIncomingCall() {
+            const randomTable = Math.floor(Math.random() * 12) + 1;
+            const types = ['call_waiter', 'request_bill', 'request_menu', 'clean_table'];
+            const randomType = types[Math.floor(Math.random() * types.length)];
+            const sampleNotes = ['', 'ماء بارد ومناديل', 'الدفع عبر الشبكة', 'إضافة عصير برتقال'];
+            const randomNote = sampleNotes[Math.floor(Math.random() * sampleNotes.length)];
+
+            publishEvent(`tables/${randomTable}`, {
+                action: 'NEW_CALL',
+                id: 'sim_' + Date.now(),
+                table: randomTable,
+                type: randomType,
+                note: randomNote,
+                timestamp: Date.now()
+            });
+        }
+
+        function formatElapsed(timestamp) {
+            const diffSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+            const mins = Math.floor(diffSec / 60);
+            const secs = diffSec % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function renderWaiterDashboard() {
+            const grid = document.getElementById('waiter-calls-grid');
+            const emptyState = document.getElementById('waiter-empty-state');
+            if (!grid || !emptyState) return;
+
+            const calls = Object.values(state.activeCalls).sort((a, b) => a.timestamp - b.timestamp);
+            const pendingCount = calls.filter(c => c.status === 'pending').length;
+            const ackCount = calls.filter(c => c.status === 'acknowledged').length;
+
+            document.getElementById('stat-pending').textContent = pendingCount;
+            document.getElementById('stat-ack').textContent = ackCount;
+            document.getElementById('stat-completed').textContent = state.completedCount;
+
+            if (calls.length === 0) {
+                emptyState.classList.remove('hidden');
+                grid.innerHTML = '';
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            grid.innerHTML = calls.map(call => {
+                const reqInfo = REQUEST_TYPES[call.type] || REQUEST_TYPES.call_waiter;
+                const isAck = call.status === 'acknowledged';
+
+                return `
+                    <div class="bg-[#1b1b1f] rounded-3xl p-5 shadow-sm border-2 ${isAck ? 'border-[#1877f2]' : 'border-white/15'} flex flex-col justify-between gap-4 animate-slide-in">
+                        <div>
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span class="text-xl font-black text-slate-950 plus90-cream px-3.5 py-1 rounded-2xl">
+                                    طاولة ${call.table}
+                                </span>
+                                <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-xl bg-[#121214] text-[#f4ebd9] border border-white/10">
+                                    <i class="fa-regular fa-clock ml-1"></i>${formatElapsed(call.timestamp)}
+                                </span>
+                            </div>
+
+                            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-extrabold ${reqInfo.badgeBg}">
+                                <i class="fa-solid ${reqInfo.icon}"></i>
+                                <span>${reqInfo.label}</span>
+                            </div>
+
+                            ${call.note ? `
+                                <div class="mt-3 p-3 rounded-2xl bg-[#121214] border border-white/10 text-xs font-bold text-slate-200">
+                                    <i class="fa-solid fa-quote-right text-slate-500 ml-1"></i> ${escapeHTML(call.note)}
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+                            ${!isAck ? `
+                                <button onclick="acknowledgeCall(${call.table})" class="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-hand-point-up"></i>
+                                    <span>تم الاستلام</span>
+                                </button>
+                            ` : `
+                                <div class="py-2.5 px-3 rounded-xl bg-blue-500/15 text-blue-300 font-extrabold text-xs flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-person-walking"></i>
+                                    <span>في الطريق</span>
+                                </div>
+                            `}
+                            <button onclick="completeCall(${call.table})" class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-check"></i>
+                                <span>تم التنفيذ</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openQRModal() {
+            document.getElementById('qr-modal').classList.remove('hidden');
+            const roomSelect = document.getElementById('qr-room-select');
+            if (roomSelect) {
+                const exists = AVAILABLE_ROOMS.some(r => r.id === state.roomId);
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = state.roomId;
+                    opt.textContent = state.roomId;
+                    roomSelect.appendChild(opt);
+                }
+                roomSelect.value = state.roomId;
+            }
+            generateQRCards();
+        }
+
+        function onQRRoomChange() {
+            const roomSelect = document.getElementById('qr-room-select');
+            if (!roomSelect) return;
+            state.roomId = roomSelect.value;
+            localStorage.setItem('nidaa_room_id', state.roomId);
+            state.baseTopic = `nidaa/restaurant/${state.roomId}`;
+            localStorage.setItem('nidaa_topic', state.baseTopic);
+
+            const channelEl = document.getElementById('stat-channel');
+            if (channelEl) channelEl.textContent = state.roomId;
+
+            const previewLink = document.getElementById('link-open-customer-tab');
+            if (previewLink) {
+                previewLink.href = `${window.location.pathname}?table=1&room=${encodeURIComponent(state.roomId)}`;
+            }
+
+            loadDashboardState();
+            initMQTT();
+            generateQRCards();
+            if (state.role === 'staff') {
+                renderWaiterDashboard();
+                if (state.staffSubView === 'dashboard') renderAdminDashboard();
+            }
+            showToast(`تم التبديل إلى ${state.roomId}`, 'amber');
+        }
+
+        function closeQRModal() {
+            document.getElementById('qr-modal').classList.add('hidden');
+        }
+
+        function generateQRCards() {
+            const count = Math.min(100, Math.max(1, parseInt(document.getElementById('qr-table-count').value || '27', 10)));
+            const roomSelect = document.getElementById('qr-room-select');
+            const selectedRoomId = roomSelect ? roomSelect.value : state.roomId;
+            const roomLabel = AVAILABLE_ROOMS.find(r => r.id === selectedRoomId)?.name || selectedRoomId;
+            const container = document.getElementById('qr-cards-container');
+            container.innerHTML = '';
+
+            const baseUrl = window.location.origin + window.location.pathname;
+
+            for (let i = 1; i <= count; i++) {
+                const tableUrl = `${baseUrl}?table=${i}&room=${encodeURIComponent(selectedRoomId)}`;
+                const card = document.createElement('div');
+                card.className = 'bg-[#1b1b1f] text-white rounded-2xl p-5 border border-white/10 flex flex-col items-center text-center shadow-sm';
+                card.innerHTML = `
+                    <span class="text-xs font-extrabold text-slate-950 plus90-cream px-3 py-1 rounded-full mb-1.5">${escapeHTML(roomLabel)}</span>
+                    <h4 class="text-xl font-black text-white mb-3">طاولة رقم ${i}</h4>
+                    <div id="qr-box-${i}" class="p-2.5 bg-[#f4ebd9] rounded-xl border border-white/15 mb-3"></div>
+                    <a href="${tableUrl}" target="_blank" class="no-print text-xs font-bold text-[#60a5fa] hover:underline">
+                        معاينة شاشة الطاولة <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>
+                    </a>
+                `;
+                container.appendChild(card);
+
+                if (typeof QRCode !== 'undefined') {
+                    new QRCode(document.getElementById(`qr-box-${i}`), {
+                        text: tableUrl,
+                        width: 130,
+                        height: 130,
+                        colorDark: '#121214',
+                        colorLight: '#f4ebd9'
+                    });
+                }
+            }
+        }
+
+        function openSettingsModal() {
+            requireAdminPin(() => {
+                document.getElementById('input-broker-url').value = state.brokerUrl;
+                document.getElementById('input-base-topic').value = state.baseTopic;
+                document.getElementById('input-waiter-pin').value = state.waiterPin;
+                document.getElementById('input-admin-pin').value = state.adminPin;
+                document.getElementById('settings-modal').classList.remove('hidden');
+            });
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            requireAdminPin(() => {
+                const newBroker = document.getElementById('input-broker-url').value.trim();
+                const newTopic = document.getElementById('input-base-topic').value.trim();
+                const newWaiterPin = document.getElementById('input-waiter-pin').value.trim();
+                const newAdminPin = document.getElementById('input-admin-pin').value.trim();
+
+                if (newBroker) {
+                    state.brokerUrl = newBroker;
+                    localStorage.setItem('nidaa_broker', newBroker);
+                }
+                if (newTopic) {
+                    state.baseTopic = newTopic;
+                    localStorage.setItem('nidaa_topic', newTopic);
+                }
+                if (newWaiterPin) {
+                    state.waiterPin = newWaiterPin;
+                    localStorage.setItem('nidaa_waiter_pin', newWaiterPin);
+                    localStorage.setItem('nidaa_staff_pin', newWaiterPin);
+                }
+                if (newAdminPin) {
+                    state.adminPin = newAdminPin;
+                    localStorage.setItem('nidaa_admin_pin', newAdminPin);
+                }
+
+                closeSettingsModal();
+                initMQTT();
+                showToast('تم حفظ الإعدادات وباسورد الأدمن والويتر', 'emerald');
+            });
+        }
+
+        function escapeHTML(str) {
+            return String(str || '').replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+
+        function requestMobileNotificationPermission() {
+            try {
+                if ('Notification' in window && Notification.permission === 'default') {
+                    Notification.requestPermission().catch(() => {});
+                }
+            } catch (e) {}
+        }
+
+        function triggerMobileScreenNotification(title, body, tag = 'plus90-call') {
+            try {
+                if (!('Notification' in window)) return;
+                if (Notification.permission !== 'granted') return;
+
+                const iconUrl = buildAppIconCanvasDataUrl(state.branding?.logoText || '90+', 192);
+                const options = {
+                    body: body,
+                    icon: iconUrl,
+                    badge: iconUrl,
+                    tag: tag,
+                    renotify: true,
+                    requireInteraction: false,
+                    dir: 'rtl',
+                    lang: 'ar'
+                };
+
+                if (swRegistration && typeof swRegistration.showNotification === 'function') {
+                    swRegistration.showNotification(title, options).catch(() => {
+                        try { new Notification(title, options); } catch (err) {}
+                    });
+                } else {
+                    new Notification(title, options);
+                }
+            } catch (e) {}
+        }
+
+        document.addEventListener('pointerdown', requestMobileNotificationPermission, { once: true });
+
+        function showToast(message, color = 'slate') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const colors = {
+                amber: 'bg-amber-500 text-slate-950',
+                emerald: 'bg-emerald-600 text-white',
+                slate: 'bg-slate-900 text-white'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `${colors[color] || colors.slate} px-4 py-3 rounded-2xl shadow-xl font-bold text-xs sm:text-sm text-center animate-slide-in`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        setInterval(() => {
+            if (state.role === 'staff' && Object.keys(state.activeCalls).length > 0) {
+                renderWaiterDashboard();
+            }
+        }, 1000);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadDashboardState();
+            applyBrandingToUI();
+            applyCustomerScreenToUI();
+            updateAdminBadgeUI();
+            applyRoleView(state.role);
+            initMQTT();
+            if (state.role === 'staff' && 'Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission().catch(() => {});
+            }
+        });
+    </script>
+</body>
+</html>
