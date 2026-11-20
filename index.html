@@ -73,7 +73,7 @@
     <header id="staff-header" class="hidden bg-[#18181b] text-[#f4efe4] shadow-lg border-b border-white/10 sticky top-0 z-40 no-print">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
-                <div id="staff-brand-logo" class="w-11 h-11 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center font-black leading-none select-none shrink-0 overflow-hidden">
+                <div id="staff-brand-logo" onclick="handleLogoImageClick(event)" title="اضغط لتغيير صورة اللوجو (أدمن)" class="w-11 h-11 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center font-black leading-none select-none shrink-0 overflow-hidden cursor-pointer transition hover:scale-105">
                     <span class="text-[7px] tracking-wider uppercase text-slate-700">LOUNGE</span>
                     <span class="text-sm font-black text-slate-950 tracking-tighter">90+</span>
                 </div>
@@ -140,8 +140,8 @@
     ====================================================================== -->
     <main id="view-customer" class="flex-1 flex flex-col max-w-lg w-full mx-auto px-4 py-6">
         <div class="flex items-center justify-between gap-2 mb-5 bg-[#1b1b1f] p-4 rounded-3xl shadow-lg border border-white/10">
-            <div onclick="handleSecretLogoTap()" class="flex items-center gap-3.5 cursor-pointer select-none" title="Plus Ninety Lounge">
-                <div id="cust-brand-logo" class="w-14 h-14 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center shrink-0 overflow-hidden">
+            <div onclick="handleCustomerBrandHeaderTap(event)" class="flex items-center gap-3.5 cursor-pointer select-none" title="Plus Ninety Lounge">
+                <div id="cust-brand-logo" onclick="handleLogoImageClick(event)" class="w-14 h-14 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center shrink-0 overflow-hidden transition hover:scale-105">
                     <span class="text-[7px] font-extrabold tracking-widest text-slate-700 uppercase">90+ LOUNGE</span>
                     <span class="text-lg font-black text-slate-950 leading-none my-0.5">90+</span>
                     <span class="text-[6.5px] font-bold tracking-wider text-slate-700 uppercase">PLUS NINETY</span>
@@ -162,7 +162,7 @@
 
         <!-- STATE A: No QR Scanned Yet (No ?table=X in URL) -->
         <div id="customer-no-qr-screen" class="hidden flex-1 flex flex-col items-center justify-center text-center bg-[#1b1b1f] rounded-3xl p-7 shadow-lg border border-white/10 animate-slide-in">
-            <div id="noqr-brand-logo" class="w-20 h-20 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center mb-4 overflow-hidden">
+            <div id="noqr-brand-logo" onclick="handleLogoImageClick(event)" title="اضغط لتغيير صورة اللوجو" class="w-20 h-20 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center mb-4 overflow-hidden cursor-pointer transition hover:scale-105">
                 <span class="text-[8px] font-extrabold tracking-widest text-slate-700">LOUNGE</span>
                 <span class="text-2xl font-black text-slate-950 leading-none">90+</span>
             </div>
@@ -254,6 +254,13 @@
                         <span id="cust-status-badge" class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300">بانتظار النادل</span>
                         <h4 id="cust-status-title" class="font-black text-white text-sm sm:text-base mt-1.5">تم إرسال الطلب</h4>
                         <p id="cust-status-desc" class="text-xs text-slate-300 mt-0.5">جاري تنبيه طاقم الخدمة فوراً...</p>
+                        <div id="cust-incoming-voice-wrap" class="hidden mt-3 p-2.5 rounded-2xl bg-black/35 border border-white/10">
+                            <div class="text-[11px] font-bold text-[#93c5fd] mb-1.5 flex items-center gap-1.5">
+                                <i class="fa-solid fa-volume-high"></i>
+                                <span>رسالة صوتية من النادل:</span>
+                            </div>
+                            <audio id="cust-incoming-voice-audio" controls playsinline class="w-full h-9 rounded-lg"></audio>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -305,6 +312,26 @@
             </div>
 
             <div id="customer-note-section" class="bg-[#1b1b1f] rounded-3xl p-5 shadow-sm border border-white/10">
+                <!-- Customer Voice Message Recorder -->
+                <div id="customer-voice-box" class="mb-4 pb-4 border-b border-white/10">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-xs font-extrabold text-[#f4ebd9] flex items-center gap-1.5">
+                            <i class="fa-solid fa-microphone text-[#60a5fa]"></i>
+                            <span>رسالة صوتية مباشرة للنادل (حد أقصى دقيقة واحدة)</span>
+                        </span>
+                        <span id="cust-voice-timer" class="hidden font-mono text-xs font-black text-rose-400 bg-rose-500/15 border border-rose-500/30 px-2.5 py-0.5 rounded-full">00:00</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-cust-voice-record" type="button" onclick="toggleCustomerVoiceRecord()" class="flex-1 py-3 px-4 rounded-2xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow">
+                            <i id="icon-cust-voice-record" class="fa-solid fa-microphone"></i>
+                            <span id="text-cust-voice-record">تسجيل رسالة صوتية وإرسالها</span>
+                        </button>
+                        <button id="btn-cust-voice-cancel" type="button" onclick="cancelVoiceRecording('customer')" class="hidden py-3 px-3.5 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs transition">
+                            إلغاء
+                        </button>
+                    </div>
+                </div>
+
                 <div id="customer-shortcuts-row">
                     <label id="customer-shortcuts-label" class="block text-xs font-extrabold text-[#f4ebd9] mb-2.5">طلبات سريعة بضغطة واحدة:</label>
                     <div id="customer-shortcuts-list" class="flex flex-wrap gap-2 mb-4">
@@ -664,14 +691,35 @@
                     <label class="block font-bold text-slate-300 mb-1">اسم المكان</label>
                     <input id="brand-input-name" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5">
                 </div>
+                <div class="bg-[#121214] border border-white/10 rounded-2xl p-3.5 flex items-center gap-4">
+                    <div id="brand-modal-logo-preview" onclick="triggerAdminLogoFilePicker()" title="اضغط لرفع صورة لوجو جديدة من جهازك" class="w-16 h-16 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center shrink-0 overflow-hidden cursor-pointer select-none transition hover:scale-105">
+                        <span class="text-[7px] font-extrabold tracking-widest text-slate-700 uppercase">LOUNGE</span>
+                        <span class="text-base font-black text-slate-950 leading-none">90+</span>
+                    </div>
+                    <div class="flex-1 space-y-2">
+                        <div class="text-xs font-extrabold text-white">صورة اللوجو</div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" onclick="triggerAdminLogoFilePicker()" class="px-3 py-1.5 rounded-xl bg-[#1877f2] hover:bg-blue-500 text-white font-bold text-xs transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-upload"></i>
+                                <span>رفع صورة من الجهاز</span>
+                            </button>
+                            <button type="button" onclick="clearAdminUploadedLogo()" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-rose-300 font-bold text-xs transition">
+                                إزالة الصورة
+                            </button>
+                            <span id="brand-logo-file-name" class="text-[11px] text-slate-400 truncate max-w-[160px]"></span>
+                        </div>
+                        <input id="brand-logo-file-input" type="file" accept="image/*" onchange="handleAdminLogoFileSelected(event)" class="hidden">
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block font-bold text-slate-300 mb-1">نص اللوجو الدائري</label>
-                        <input id="brand-input-logo-text" type="text" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5">
+                        <input id="brand-input-logo-text" type="text" oninput="updateBrandingModalPreview()" class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5">
                     </div>
                     <div>
-                        <label class="block font-bold text-slate-300 mb-1">رابط صورة اللوجو (URL)</label>
-                        <input id="brand-input-logo-url" type="text" dir="ltr" placeholder="https://..." class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5 font-mono">
+                        <label class="block font-bold text-slate-300 mb-1">رابط صورة اللوجو (URL أو Base64)</label>
+                        <input id="brand-input-logo-url" type="text" dir="ltr" oninput="updateBrandingModalPreview()" placeholder="https://..." class="w-full bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2.5 font-mono">
                     </div>
                 </div>
                 <div>
@@ -1226,7 +1274,8 @@
             request_bill: { label: 'طلب الفاتورة', icon: 'fa-file-invoice-dollar', badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
             request_menu: { label: 'إضافة طلب / منيو', icon: 'fa-utensils', badgeBg: 'bg-blue-50 text-blue-800 border-blue-200' },
             clean_table: { label: 'تنظيف الطاولة', icon: 'fa-sparkles', badgeBg: 'bg-purple-50 text-purple-800 border-purple-200' },
-            custom_note: { label: 'طلب خاص / ملاحظة', icon: 'fa-comment-dots', badgeBg: 'bg-rose-50 text-rose-800 border-rose-200' }
+            custom_note: { label: 'طلب خاص / ملاحظة', icon: 'fa-comment-dots', badgeBg: 'bg-rose-50 text-rose-800 border-rose-200' },
+            voice_note: { label: 'رسالة صوتية', icon: 'fa-microphone', badgeBg: 'bg-sky-50 text-sky-900 border-sky-200' }
         };
 
         let logoTapCount = 0;
@@ -1613,11 +1662,94 @@
             });
         });
 
+        let autoOpenFilePickerOnBranding = false;
+
+        function handleCustomerBrandHeaderTap(event) {
+            if (event && event.target && event.target.closest('#cust-brand-logo')) return;
+            handleSecretLogoTap();
+        }
+
+        function handleLogoImageClick(event) {
+            if (event) event.stopPropagation();
+            if (state.role === 'staff' && state.staffLevel === 'admin') {
+                autoOpenFilePickerOnBranding = true;
+                openBrandingModal();
+                return;
+            }
+            if (state.role === 'staff') {
+                requireAdminPin(() => {
+                    autoOpenFilePickerOnBranding = true;
+                    openBrandingModal();
+                });
+                return;
+            }
+            // In customer view: if admin PIN is entered, open branding & file picker; otherwise keep secret 5-tap shortcut available
+            handleSecretLogoTap();
+        }
+
+        function triggerAdminLogoFilePicker() {
+            requireAdminPin(() => {
+                const fileInput = document.getElementById('brand-logo-file-input');
+                if (fileInput) {
+                    fileInput.value = '';
+                    fileInput.click();
+                }
+            });
+        }
+
+        function handleAdminLogoFileSelected(event) {
+            const file = event && event.target && event.target.files && event.target.files[0];
+            if (!file) return;
+            if (!file.type || !file.type.startsWith('image/')) {
+                showToast('يرجى اختيار ملف صورة صالح (JPG, PNG, WEBP)', 'slate');
+                return;
+            }
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('حجم الصورة كبير، يُفضل أن يكون أقل من 2 ميجابايت', 'amber');
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e && e.target ? e.target.result : '';
+                if (typeof dataUrl !== 'string') return;
+                const urlInput = document.getElementById('brand-input-logo-url');
+                const fileNameEl = document.getElementById('brand-logo-file-name');
+                if (urlInput) urlInput.value = dataUrl;
+                if (fileNameEl) fileNameEl.textContent = file.name;
+                updateBrandingModalPreview();
+                showToast('تم تحميل الصورة الجديدة، اضغط "حفظ اللوجو واللينك" لتثبيتها', 'emerald');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearAdminUploadedLogo() {
+            const urlInput = document.getElementById('brand-input-logo-url');
+            const fileInput = document.getElementById('brand-logo-file-input');
+            const fileNameEl = document.getElementById('brand-logo-file-name');
+            if (urlInput) urlInput.value = '';
+            if (fileInput) fileInput.value = '';
+            if (fileNameEl) fileNameEl.textContent = '';
+            updateBrandingModalPreview();
+        }
+
+        function updateBrandingModalPreview() {
+            const previewEl = document.getElementById('brand-modal-logo-preview');
+            if (!previewEl) return;
+            const logoText = (document.getElementById('brand-input-logo-text')?.value || '').trim() || '90+';
+            const logoUrl = (document.getElementById('brand-input-logo-url')?.value || '').trim();
+            if (logoUrl) {
+                previewEl.innerHTML = `<img src="${escapeHTML(logoUrl)}" alt="Logo Preview" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" class="w-full h-full object-cover"><span style="display:none" class="w-full h-full items-center justify-center text-sm font-black text-slate-950">${escapeHTML(logoText)}</span>`;
+            } else {
+                previewEl.innerHTML = `<span class="text-[7px] font-extrabold tracking-widest text-slate-700 uppercase">LOUNGE</span><span class="text-base font-black text-slate-950 leading-none">${escapeHTML(logoText)}</span>`;
+            }
+        }
+
         function openBrandingModal() {
             requireAdminPin(() => {
                 document.getElementById('brand-input-name').value = state.branding.name;
                 document.getElementById('brand-input-logo-text').value = state.branding.logoText;
                 document.getElementById('brand-input-logo-url').value = state.branding.logoUrl;
+                const fileNameEl = document.getElementById('brand-logo-file-name');
+                if (fileNameEl) fileNameEl.textContent = state.branding.logoUrl && state.branding.logoUrl.startsWith('data:image/') ? 'صورة مرفوعة محفوظة' : '';
                 document.getElementById('brand-input-link').value = state.branding.link;
                 document.getElementById('brand-input-facebook').value = state.branding.facebookUrl || DEFAULT_BRANDING.facebookUrl;
                 document.getElementById('brand-input-instagram').value = state.branding.instagramUrl || DEFAULT_BRANDING.instagramUrl;
@@ -1625,7 +1757,12 @@
                 document.getElementById('brand-input-tagline').value = state.branding.tagline;
                 document.getElementById('brand-input-bio').value = state.branding.bio;
                 document.getElementById('brand-input-desc').value = state.branding.desc;
+                updateBrandingModalPreview();
                 document.getElementById('branding-modal').classList.remove('hidden');
+                if (autoOpenFilePickerOnBranding) {
+                    autoOpenFilePickerOnBranding = false;
+                    setTimeout(() => triggerAdminLogoFilePicker(), 120);
+                }
             });
         }
 
@@ -2160,6 +2297,10 @@
                     unitType,
                     type: callType,
                     note: data.note || '',
+                    audioData: data.audioData || '',
+                    audioMime: data.audioMime || 'audio/webm',
+                    waiterAudioData: state.activeCalls[callKey]?.waiterAudioData || '',
+                    waiterAudioMime: state.activeCalls[callKey]?.waiterAudioMime || 'audio/webm',
                     timestamp: data.timestamp || Date.now(),
                     status: 'pending'
                 };
@@ -2207,6 +2348,37 @@
                     saveDashboardState();
                     if (state.role === 'customer' && callKey === String(state.customerTable)) {
                         showToast('تم تنفيذ طلبك بنجاح، نتمنى لك وقتاً ممتعاً!', 'emerald');
+                    }
+                }
+            } else if (data.action === 'WAITER_VOICE_REPLY') {
+                if (data.audioData) {
+                    if (!state.activeCalls[callKey]) {
+                        state.activeCalls[callKey] = {
+                            id: 'reply_' + Date.now(),
+                            table: callKey,
+                            unitType,
+                            type: 'voice_note',
+                            note: 'رد صوتي من النادل',
+                            timestamp: data.timestamp || Date.now(),
+                            status: 'acknowledged'
+                        };
+                    }
+                    state.activeCalls[callKey].status = 'acknowledged';
+                    state.activeCalls[callKey].waiterAudioData = data.audioData;
+                    state.activeCalls[callKey].waiterAudioMime = data.audioMime || 'audio/webm';
+                    state.activeCalls[callKey].waiterReplyTime = data.timestamp || Date.now();
+                    saveDashboardState();
+
+                    if (state.role === 'customer' && callKey === String(state.customerTable)) {
+                        playNotificationChime('ack');
+                        showToast('وصلتك رسالة صوتية جديدة من النادل!', 'emerald');
+                        triggerMobileScreenNotification(state.branding?.name || 'Plus Ninety Lounge', 'رد صوتي جديد من النادل', `voice-reply-${callKey}`);
+                        setTimeout(() => {
+                            const audioEl = document.getElementById('cust-incoming-voice-audio');
+                            if (audioEl) {
+                                audioEl.play().catch(() => {});
+                            }
+                        }, 200);
                     }
                 }
             } else if (data.action === 'CANCEL_CALL') {
@@ -2336,13 +2508,29 @@
             const desc = document.getElementById('cust-status-desc');
             const reqInfo = REQUEST_TYPES[activeCall.type] || REQUEST_TYPES.call_waiter;
 
+            const voiceWrap = document.getElementById('cust-incoming-voice-wrap');
+            const voiceAudio = document.getElementById('cust-incoming-voice-audio');
+            if (voiceWrap && voiceAudio) {
+                if (activeCall.waiterAudioData) {
+                    voiceWrap.classList.remove('hidden');
+                    if (voiceAudio.getAttribute('data-reply-time') !== String(activeCall.waiterReplyTime || '')) {
+                        voiceAudio.src = activeCall.waiterAudioData;
+                        voiceAudio.setAttribute('data-reply-time', String(activeCall.waiterReplyTime || ''));
+                    }
+                } else {
+                    voiceWrap.classList.add('hidden');
+                    voiceAudio.removeAttribute('src');
+                    voiceAudio.removeAttribute('data-reply-time');
+                }
+            }
+
             if (activeCall.status === 'acknowledged') {
                 card.className = 'rounded-3xl p-5 border-2 bg-[#162722] border-emerald-400 transition-all animate-slide-in';
                 iconBox.className = 'w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-xl shrink-0';
-                icon.className = 'fa-solid fa-person-walking';
+                icon.className = activeCall.waiterAudioData ? 'fa-solid fa-volume-high' : 'fa-solid fa-person-walking';
                 badge.className = 'text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300';
-                badge.textContent = 'تم الاستلام';
-                title.textContent = 'النادل في الطريق إليك الآن!';
+                badge.textContent = activeCall.waiterAudioData ? 'رد صوتي من النادل' : 'تم الاستلام';
+                title.textContent = activeCall.waiterAudioData ? 'النادل أرسل لك رداً صوتياً' : 'النادل في الطريق إليك الآن!';
                 desc.textContent = `الطلب: ${reqInfo.label}${activeCall.note ? ' (' + activeCall.note + ')' : ''}`;
             } else {
                 card.className = 'rounded-3xl p-5 border-2 bg-[#262116] border-amber-400 animate-pulse-ring transition-all animate-slide-in';
@@ -2434,14 +2622,36 @@
                                 <span>${reqInfo.label}</span>
                             </div>
 
+                            ${call.audioData ? `
+                                <div class="mt-3 p-3 rounded-2xl bg-[#121214] border border-[#1877f2]/40">
+                                    <div class="text-[11px] font-extrabold text-[#93c5fd] mb-1.5 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-microphone"></i>
+                                        <span>رسالة العميل الصوتية:</span>
+                                    </div>
+                                    <audio controls playsinline src="${call.audioData}" class="w-full h-9 rounded-lg"></audio>
+                                </div>
+                            ` : ''}
+
                             ${call.note ? `
                                 <div class="mt-3 p-3 rounded-2xl bg-[#121214] border border-white/10 text-xs font-bold text-slate-200">
                                     <i class="fa-solid fa-quote-right text-slate-500 ml-1"></i> ${escapeHTML(call.note)}
                                 </div>
                             ` : ''}
+
+                            ${call.waiterAudioData ? `
+                                <div class="mt-2.5 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-300 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-check-circle"></i>
+                                    <span>تم إرسال رد صوتي للعميل</span>
+                                </div>
+                            ` : ''}
                         </div>
 
-                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+                        <div class="space-y-2 pt-2 border-t border-white/10">
+                            <button id="btn-waiter-voice-${safeKeyAttr}" type="button" onclick="toggleWaiterVoiceReply('${safeKeyAttr}')" class="w-full py-2.5 px-3 rounded-xl bg-[#1877f2]/20 hover:bg-[#1877f2]/35 border border-[#1877f2]/50 text-[#93c5fd] font-extrabold text-xs transition flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-microphone"></i>
+                                <span>رد صوتي على العميل</span>
+                            </button>
+                            <div class="grid grid-cols-2 gap-2">
                             ${!isAck ? `
                                 <button onclick="acknowledgeCall('${safeKeyAttr}')" class="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition flex items-center justify-center gap-1.5">
                                     <i class="fa-solid fa-hand-point-up"></i>
@@ -2457,6 +2667,7 @@
                                 <i class="fa-solid fa-check"></i>
                                 <span>تم التنفيذ</span>
                             </button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -2809,9 +3020,264 @@
 
         setInterval(() => {
             if (state.role === 'staff' && Object.keys(state.activeCalls).length > 0) {
-                renderWaiterDashboard();
+                const isAnyAudioPlaying = Array.from(document.querySelectorAll('#waiter-calls-grid audio')).some(a => !a.paused && !a.ended);
+                if (!isAnyAudioPlaying && !activeVoiceRecorder) {
+                    renderWaiterDashboard();
+                }
             }
         }, 1000);
+
+        let activeVoiceRecorder = null;
+        let activeVoiceStream = null;
+        let activeVoiceChunks = [];
+        let activeVoiceTimer = null;
+        let activeVoiceSeconds = 0;
+        let activeVoiceContext = null; // { mode: 'customer' | 'waiter', targetKey?: string }
+
+        function getSupportedAudioMimeType() {
+            if (typeof MediaRecorder === 'undefined') return '';
+            const candidates = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/ogg;codecs=opus',
+                'audio/mp4'
+            ];
+            for (const mime of candidates) {
+                try {
+                    if (MediaRecorder.isTypeSupported(mime)) return mime;
+                } catch (e) {}
+            }
+            return '';
+        }
+
+        function stopVoiceTracks() {
+            if (activeVoiceTimer) {
+                clearInterval(activeVoiceTimer);
+                activeVoiceTimer = null;
+            }
+            if (activeVoiceStream) {
+                try {
+                    activeVoiceStream.getTracks().forEach(t => t.stop());
+                } catch (e) {}
+                activeVoiceStream = null;
+            }
+        }
+
+        function resetVoiceUIState() {
+            const custBtn = document.getElementById('btn-cust-voice-record');
+            const custIcon = document.getElementById('icon-cust-voice-record');
+            const custText = document.getElementById('text-cust-voice-record');
+            const custCancel = document.getElementById('btn-cust-voice-cancel');
+            const custTimer = document.getElementById('cust-voice-timer');
+
+            if (custBtn) custBtn.className = 'flex-1 py-3 px-4 rounded-2xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow';
+            if (custIcon) custIcon.className = 'fa-solid fa-microphone';
+            if (custText) custText.textContent = 'تسجيل رسالة صوتية وإرسالها';
+            if (custCancel) custCancel.classList.add('hidden');
+            if (custTimer) {
+                custTimer.classList.add('hidden');
+                custTimer.textContent = '00:00';
+            }
+
+            if (activeVoiceContext && activeVoiceContext.mode === 'waiter' && activeVoiceContext.targetKey) {
+                const wBtn = document.getElementById(`btn-waiter-voice-${activeVoiceContext.targetKey}`);
+                if (wBtn) {
+                    wBtn.className = 'w-full py-2.5 px-3 rounded-xl bg-[#1877f2]/20 hover:bg-[#1877f2]/35 border border-[#1877f2]/50 text-[#93c5fd] font-extrabold text-xs transition flex items-center justify-center gap-1.5';
+                    wBtn.innerHTML = '<i class="fa-solid fa-microphone"></i><span>رد صوتي على العميل</span>';
+                }
+            }
+        }
+
+        function cancelVoiceRecording() {
+            const rec = activeVoiceRecorder;
+            activeVoiceRecorder = null;
+            activeVoiceChunks = [];
+            stopVoiceTracks();
+            resetVoiceUIState();
+            activeVoiceContext = null;
+            if (rec && rec.state !== 'inactive') {
+                try {
+                    rec.onstop = null;
+                    rec.stop();
+                } catch (e) {}
+            }
+            showToast('تم إلغاء التسجيل الصوتي', 'slate');
+        }
+
+        async function startVoiceRecording(context) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+                showToast('المتصفح لا يدعم تسجيل الصوت أو الصفحة ليست HTTPS', 'slate');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        channelCount: 1
+                    }
+                });
+
+                const mimeType = getSupportedAudioMimeType();
+                const options = { audioBitsPerSecond: 12000 };
+                if (mimeType) options.mimeType = mimeType;
+
+                let recorder;
+                try {
+                    recorder = new MediaRecorder(stream, options);
+                } catch (e) {
+                    recorder = new MediaRecorder(stream);
+                }
+
+                activeVoiceStream = stream;
+                activeVoiceRecorder = recorder;
+                activeVoiceChunks = [];
+                activeVoiceSeconds = 0;
+                activeVoiceContext = context;
+
+                recorder.ondataavailable = (ev) => {
+                    if (ev.data && ev.data.size > 0) {
+                        activeVoiceChunks.push(ev.data);
+                    }
+                };
+
+                recorder.onstop = () => {
+                    const finalMime = recorder.mimeType || mimeType || 'audio/webm';
+                    const blob = new Blob(activeVoiceChunks, { type: finalMime });
+                    const finishedCtx = activeVoiceContext;
+
+                    activeVoiceRecorder = null;
+                    activeVoiceChunks = [];
+                    stopVoiceTracks();
+                    resetVoiceUIState();
+                    activeVoiceContext = null;
+
+                    if (!blob || blob.size < 300 || !finishedCtx) return;
+
+                    if (blob.size > 380000) {
+                        showToast('التسجيل طويل جداً، يرجى اختصار الرسالة الصوتية (أقل من دقيقة)', 'slate');
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const base64Audio = reader.result;
+                        if (typeof base64Audio !== 'string') return;
+
+                        if (finishedCtx.mode === 'customer') {
+                            sendCustomerVoiceMessage(base64Audio, finalMime);
+                        } else if (finishedCtx.mode === 'waiter' && finishedCtx.targetKey) {
+                            sendWaiterVoiceReply(finishedCtx.targetKey, base64Audio, finalMime);
+                        }
+                    };
+                    reader.readAsDataURL(base64Audio instanceof Blob ? base64Audio : blob);
+                };
+
+                recorder.start(250);
+
+                if (context.mode === 'customer') {
+                    const custBtn = document.getElementById('btn-cust-voice-record');
+                    const custIcon = document.getElementById('icon-cust-voice-record');
+                    const custText = document.getElementById('text-cust-voice-record');
+                    const custCancel = document.getElementById('btn-cust-voice-cancel');
+                    const custTimer = document.getElementById('cust-voice-timer');
+
+                    if (custBtn) custBtn.className = 'flex-1 py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow animate-pulse';
+                    if (custIcon) custIcon.className = 'fa-solid fa-paper-plane';
+                    if (custText) custText.textContent = 'اضغط لإرسال الرسالة الصوتية الآن';
+                    if (custCancel) custCancel.classList.remove('hidden');
+                    if (custTimer) {
+                        custTimer.classList.remove('hidden');
+                        custTimer.textContent = '00:00';
+                    }
+                } else if (context.mode === 'waiter' && context.targetKey) {
+                    const wBtn = document.getElementById(`btn-waiter-voice-${context.targetKey}`);
+                    if (wBtn) {
+                        wBtn.className = 'w-full py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 animate-pulse';
+                        wBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span>إيقاف وإرسال الرد الصوتي (00:00)</span>';
+                    }
+                }
+
+                activeVoiceTimer = setInterval(() => {
+                    activeVoiceSeconds++;
+                    const mins = Math.floor(activeVoiceSeconds / 60);
+                    const secs = activeVoiceSeconds % 60;
+                    const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                    if (context.mode === 'customer') {
+                        const custTimer = document.getElementById('cust-voice-timer');
+                        if (custTimer) custTimer.textContent = formatted;
+                    } else if (context.mode === 'waiter' && context.targetKey) {
+                        const wBtn = document.getElementById(`btn-waiter-voice-${context.targetKey}`);
+                        if (wBtn) {
+                            wBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i><span>إيقاف وإرسال الرد الصوتي (${formatted})</span>`;
+                        }
+                    }
+                    if (activeVoiceSeconds >= 60 && activeVoiceRecorder && activeVoiceRecorder.state === 'recording') {
+                        activeVoiceRecorder.stop();
+                    }
+                }, 1000);
+            } catch (err) {
+                stopVoiceTracks();
+                resetVoiceUIState();
+                activeVoiceContext = null;
+                showToast('يرجى السماح بصلاحية الميكروفون لتسجيل الرسالة الصوتية', 'slate');
+            }
+        }
+
+        function toggleCustomerVoiceRecord() {
+            if (!state.customerTable) return;
+            if (activeVoiceRecorder && activeVoiceRecorder.state === 'recording') {
+                activeVoiceRecorder.stop();
+                return;
+            }
+            startVoiceRecording({ mode: 'customer' });
+        }
+
+        function toggleWaiterVoiceReply(tableKey) {
+            const key = String(tableKey);
+            if (activeVoiceRecorder && activeVoiceRecorder.state === 'recording') {
+                activeVoiceRecorder.stop();
+                return;
+            }
+            startVoiceRecording({ mode: 'waiter', targetKey: key });
+        }
+
+        function sendCustomerVoiceMessage(audioData, audioMime) {
+            if (!state.customerTable) return;
+            const callId = 'voice_' + Date.now();
+            state.customerCurrentCallId = callId;
+            const unitType = state.customerUnitType === 'room' ? 'room' : 'table';
+
+            publishEvent(`tables/${encodeURIComponent(state.customerTable)}`, {
+                action: 'NEW_CALL',
+                id: callId,
+                table: String(state.customerTable),
+                unitType,
+                type: 'voice_note',
+                note: 'رسالة صوتية مسجلة',
+                audioData,
+                audioMime,
+                timestamp: Date.now()
+            });
+
+            showToast(`تم إرسال رسالتك الصوتية لـ ${formatUnitDisplay(state.customerTable, unitType, 'طاولة')}`, 'emerald');
+        }
+
+        function sendWaiterVoiceReply(tableKey, audioData, audioMime) {
+            const key = String(tableKey);
+            const unitType = state.activeCalls[key]?.unitType || 'table';
+            publishEvent(`tables/${encodeURIComponent(key)}`, {
+                action: 'WAITER_VOICE_REPLY',
+                table: key,
+                unitType,
+                audioData,
+                audioMime,
+                timestamp: Date.now()
+            });
+            showToast(`تم إرسال الرد الصوتي إلى ${formatUnitDisplay(key, unitType, 'طاولة')}`, 'emerald');
+        }
+
 
         window.addEventListener('DOMContentLoaded', () => {
             loadDashboardState();
