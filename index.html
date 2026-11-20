@@ -1784,22 +1784,28 @@
                     bio: document.getElementById('brand-input-bio').value.trim() || DEFAULT_BRANDING.bio,
                     desc: document.getElementById('brand-input-desc').value.trim() || DEFAULT_BRANDING.desc
                 };
+                const nowTs = Date.now();
                 localStorage.setItem('plus90_branding', JSON.stringify(state.branding));
+                localStorage.setItem('plus90_branding_ts', String(nowTs));
+                publishRetainedConfig('branding', state.branding);
                 applyBrandingToUI();
                 if (state.role === 'staff') renderAdminDashboard();
                 closeBrandingModal();
-                showToast('تم حفظ اللوجو واللينك بنجاح', 'emerald');
+                showToast('تم حفظ ومزامنة اللوجو واللينك على كل الأجهزة', 'emerald');
             });
         }
 
         function resetBrandingDefaults() {
             requireAdminPin(() => {
                 state.branding = { ...DEFAULT_BRANDING };
+                const nowTs = Date.now();
                 localStorage.setItem('plus90_branding', JSON.stringify(state.branding));
+                localStorage.setItem('plus90_branding_ts', String(nowTs));
+                publishRetainedConfig('branding', state.branding);
                 applyBrandingToUI();
                 if (state.role === 'staff') renderAdminDashboard();
                 closeBrandingModal();
-                showToast('تمت استعادة اللوجو واللينك الافتراضي', 'amber');
+                showToast('تمت استعادة ومزامنة الإعداد الافتراضي على كل الأجهزة', 'amber');
             });
         }
 
@@ -2055,22 +2061,28 @@
                     showNoteBox: document.getElementById('cs-show-note-box').checked,
                     showFooter: document.getElementById('cs-show-footer').checked
                 });
+                const nowTs = Date.now();
                 localStorage.setItem('plus90_customer_screen', JSON.stringify(state.customerScreen));
+                localStorage.setItem('plus90_customer_screen_ts', String(nowTs));
+                publishRetainedConfig('customer_screen', state.customerScreen);
                 applyCustomerScreenToUI();
                 if (state.role === 'staff') renderAdminDashboard();
                 closeCustomerScreenModal();
-                showToast('تم حفظ إعدادات شاشة العميل بنجاح', 'emerald');
+                showToast('تم حفظ ومزامنة شاشة العميل على كل الأجهزة', 'emerald');
             });
         }
 
         function resetCustomerScreenSettings() {
             requireAdminPin(() => {
                 state.customerScreen = normalizeCustomerScreenState(DEFAULT_CUSTOMER_SCREEN);
+                const nowTs = Date.now();
                 localStorage.setItem('plus90_customer_screen', JSON.stringify(state.customerScreen));
+                localStorage.setItem('plus90_customer_screen_ts', String(nowTs));
+                publishRetainedConfig('customer_screen', state.customerScreen);
                 applyCustomerScreenToUI();
                 if (state.role === 'staff') renderAdminDashboard();
                 closeCustomerScreenModal();
-                showToast('تمت استعادة إعدادات شاشة العميل الافتراضية', 'amber');
+                showToast('تمت استعادة ومزامنة الإعدادات الافتراضية لكل الأجهزة', 'amber');
             });
         }
 
@@ -2187,7 +2199,12 @@
             if ('BroadcastChannel' in window) {
                 localChannel = new BroadcastChannel(`nidaa_sync_${state.roomId}`);
                 localChannel.onmessage = (event) => {
-                    if (event.data) handleIncomingEvent(event.data);
+                    if (!event.data) return;
+                    if (event.data.action === 'CONFIG_SYNC') {
+                        handleIncomingConfigSync('', event.data);
+                        return;
+                    }
+                    handleIncomingEvent(event.data);
                 };
             }
         } catch (e) {}
@@ -2237,10 +2254,18 @@
                     state.mqttConnected = true;
                     updateMQTTStatusUI('connected');
                     mqttClient.subscribe(`${state.baseTopic}/tables/#`, { qos: 1 });
+                    mqttClient.subscribe(`${state.baseTopic}/config/#`, { qos: 1 });
                 });
                 mqttClient.on('message', (topic, message) => {
                     try {
-                        handleIncomingEvent(JSON.parse(message.toString()));
+                        const rawStr = message.toString();
+                        if (!rawStr) return;
+                        const parsed = JSON.parse(rawStr);
+                        if (topic && topic.includes('/config/')) {
+                            handleIncomingConfigSync(topic, parsed);
+                            return;
+                        }
+                        handleIncomingEvent(parsed);
                     } catch (err) {}
                 });
                 mqttClient.on('error', () => {
@@ -2278,6 +2303,77 @@
                 try {
                     mqttClient.publish(`${state.baseTopic}/${subTopic}`, JSON.stringify(eventMsg), { qos: 1 });
                 } catch (e) {}
+            }
+        }
+
+
+        const SYNC_SENDER_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
+
+        function publishRetainedConfig(configKey, payloadData) {
+            const envelope = {
+                senderId: SYNC_SENDER_ID,
+                updatedAt: Date.now(),
+                data: payloadData
+            };
+            if (localChannel) {
+                try {
+                    localChannel.postMessage({
+                        action: 'CONFIG_SYNC',
+                        configKey,
+                        ...envelope
+                    });
+                } catch (e) {}
+            }
+            if (mqttClient) {
+                try {
+                    mqttClient.publish(`${state.baseTopic}/config/${configKey}`, JSON.stringify(envelope), { qos: 1, retain: true });
+                } catch (e) {}
+            }
+        }
+
+        function handleIncomingConfigSync(topic, envelope) {
+            if (!envelope || !envelope.data) return;
+            if (envelope.senderId === SYNC_SENDER_ID) return;
+
+            const key = topic.endsWith('/branding') ? 'branding'
+                : topic.endsWith('/customer_screen') ? 'customer_screen'
+                : topic.endsWith('/manual_qrs') ? 'manual_qrs'
+                : (envelope.configKey || '');
+
+            const remoteTs = Number(envelope.updatedAt || 0);
+
+            if (key === 'branding') {
+                const localTs = Number(localStorage.getItem('plus90_branding_ts') || 0);
+                if (remoteTs && localTs && remoteTs <= localTs) return;
+                state.branding = { ...DEFAULT_BRANDING, ...envelope.data };
+                try {
+                    localStorage.setItem('plus90_branding', JSON.stringify(state.branding));
+                    if (remoteTs) localStorage.setItem('plus90_branding_ts', String(remoteTs));
+                } catch (e) {}
+                applyBrandingToUI();
+                if (state.role === 'staff' && state.staffSubView === 'dashboard') renderAdminDashboard();
+                showToast('تم تحديث اللوجو والبيانات تلقائياً من الإدارة', 'emerald');
+            } else if (key === 'customer_screen') {
+                const localTs = Number(localStorage.getItem('plus90_customer_screen_ts') || 0);
+                if (remoteTs && localTs && remoteTs <= localTs) return;
+                state.customerScreen = normalizeCustomerScreenState(envelope.data);
+                try {
+                    localStorage.setItem('plus90_customer_screen', JSON.stringify(state.customerScreen));
+                    if (remoteTs) localStorage.setItem('plus90_customer_screen_ts', String(remoteTs));
+                } catch (e) {}
+                applyCustomerScreenToUI();
+                renderCustomerTableState();
+                if (state.role === 'staff' && state.staffSubView === 'dashboard') renderAdminDashboard();
+                showToast('تم تحديث إعدادات شاشة العميل تلقائياً', 'emerald');
+            } else if (key === 'manual_qrs' && Array.isArray(envelope.data)) {
+                const localTs = Number(localStorage.getItem('plus90_manual_qrs_ts') || 0);
+                if (remoteTs && localTs && remoteTs <= localTs) return;
+                saveManualQRCodes(envelope.data, false);
+                if (remoteTs) localStorage.setItem('plus90_manual_qrs_ts', String(remoteTs));
+                const qrModal = document.getElementById('qr-modal');
+                if (qrModal && !qrModal.classList.contains('hidden')) {
+                    generateQRCards();
+                }
             }
         }
 
@@ -2694,9 +2790,13 @@
             }
         }
 
-        function saveManualQRCodes(list) {
+        function saveManualQRCodes(list, shouldSync = true) {
             try {
                 localStorage.setItem(MANUAL_QR_STORAGE_KEY, JSON.stringify(list));
+                if (shouldSync) {
+                    localStorage.setItem('plus90_manual_qrs_ts', String(Date.now()));
+                    publishRetainedConfig('manual_qrs', list);
+                }
             } catch (e) {}
         }
 
