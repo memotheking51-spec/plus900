@@ -2268,6 +2268,14 @@
             }
             if (mqttClient && state.mqttConnected) {
                 try {
+                    mqttClient.publish(`${state.baseTopic}/${subTopic}`, JSON.stringify(eventMsg), { qos: 1 }, (err) => {
+                        if (err) {
+                            showToast('تعذر إرسال الرسالة عبر الإنترنت، تأكد من قصر مدة التسجيل', 'amber');
+                        }
+                    });
+                } catch (e) {}
+            } else if (mqttClient) {
+                try {
                     mqttClient.publish(`${state.baseTopic}/${subTopic}`, JSON.stringify(eventMsg), { qos: 1 });
                 } catch (e) {}
             }
@@ -3120,7 +3128,7 @@
                 });
 
                 const mimeType = getSupportedAudioMimeType();
-                const options = { audioBitsPerSecond: 12000 };
+                const options = { audioBitsPerSecond: 8000 };
                 if (mimeType) options.mimeType = mimeType;
 
                 let recorder;
@@ -3155,7 +3163,7 @@
 
                     if (!blob || blob.size < 300 || !finishedCtx) return;
 
-                    if (blob.size > 380000) {
+                    if (blob.size > 900000) {
                         showToast('التسجيل طويل جداً، يرجى اختصار الرسالة الصوتية (أقل من دقيقة)', 'slate');
                         return;
                     }
@@ -3171,7 +3179,7 @@
                             sendWaiterVoiceReply(finishedCtx.targetKey, base64Audio, finalMime);
                         }
                     };
-                    reader.readAsDataURL(base64Audio instanceof Blob ? base64Audio : blob);
+                    reader.readAsDataURL(blob);
                 };
 
                 recorder.start(250);
