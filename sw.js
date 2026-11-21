@@ -1,4 +1,4 @@
-const CACHE_NAME = 'plus90-lounge-v12-fixed';
+const CACHE_NAME = 'plus90-lounge-v13-pwa';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -12,6 +12,12 @@ self.addEventListener('install', (event) => {
       .then((cache) => cache.addAll(CORE_ASSETS).catch(() => {}))
       .then(() => self.skipWaiting())
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
@@ -51,7 +57,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetchWithTimeout(event.request, 4500)
         .then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
+          if (response && response.status === 200) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', clone)).catch(() => {});
           }
@@ -68,7 +74,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetchWithTimeout(event.request, 4500)
       .then((response) => {
-        if (response && response.status === 200 && response.type === 'basic') {
+        if (response && response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => {});
         }
