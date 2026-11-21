@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Plus Ninety Lounge">
+    <link rel="manifest" href="./manifest.json">
     <title>Plus Ninety Lounge | نظام استدعاء الويتر الذكي QR MQTT</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,7 +19,6 @@
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        /* Fallback & core styling to guarantee layout even if external CSS is slow */
         * { box-sizing: border-box; }
         html, body {
             margin: 0;
@@ -103,14 +103,14 @@
                     <i id="icon-sound" class="fa-solid fa-volume-high"></i>
                 </button>
 
-                <!-- Admin Branding Button (Logo & Link Editor - Admin PIN Required) -->
+                <!-- Admin Branding Button -->
                 <button onclick="openBrandingModal()" id="btn-admin-branding" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold text-xs sm:text-sm transition shadow" title="تعديل اللوجو واللينك (باسورد الأدمن)">
                     <i class="fa-solid fa-pen-to-square"></i>
                     <span>تعديل اللوجو واللينك</span>
                     <span id="admin-lock-pill" class="text-[10px] bg-black/30 px-1.5 py-0.5 rounded-md">أدمن</span>
                 </button>
 
-                <!-- Admin Customer Screen Settings Button (Admin PIN Required) -->
+                <!-- Admin Customer Screen Settings Button -->
                 <button onclick="openCustomerScreenModal()" id="btn-admin-customer-screen" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-[#1877f2]/40 text-[#93c5fd] font-extrabold text-xs sm:text-sm transition shadow" title="إعدادات شاشة العميل (باسورد الأدمن)">
                     <i class="fa-solid fa-mobile-screen-button"></i>
                     <span>إعداد شاشة العميل</span>
@@ -161,7 +161,7 @@
             </div>
         </div>
 
-        <!-- STATE A: No QR Scanned Yet (No ?table=X in URL) -->
+        <!-- STATE A: No QR Scanned Yet -->
         <div id="customer-no-qr-screen" class="hidden flex-1 flex flex-col items-center justify-center text-center bg-[#1b1b1f] rounded-3xl p-7 shadow-lg border border-white/10 animate-slide-in">
             <div id="noqr-brand-logo" onclick="handleLogoImageClick(event)" title="اضغط لتغيير صورة اللوجو" class="w-20 h-20 rounded-full plus90-cream plus90-blue-ring flex flex-col items-center justify-center mb-4 overflow-hidden cursor-pointer transition hover:scale-105">
                 <span class="text-[8px] font-extrabold tracking-widest text-slate-700">LOUNGE</span>
@@ -219,12 +219,12 @@
                 </div>
 
                 <button onclick="openStaffLoginModal()" class="mt-3 text-xs font-bold text-slate-400 hover:text-[#f4ebd9] transition underline">
-                    دخول النادل / لوحة التحكم (PIN: 1234)
+                    دخول النادل / لوحة التحكم (PIN)
                 </button>
             </div>
         </div>
 
-        <!-- STATE B: Locked Table Interface (When ?table=X is detected from QR) -->
+        <!-- STATE B: Locked Table Interface -->
         <div id="customer-table-interface" class="hidden flex-1 flex flex-col gap-5 animate-slide-in">
             <div class="bg-gradient-to-l from-[#1f2430] to-[#16161a] text-white rounded-3xl p-5 shadow-lg border border-white/10 relative overflow-hidden">
                 <div class="absolute -left-6 -bottom-6 text-[#f4ebd9]/5 text-8xl font-black pointer-events-none select-none">
@@ -245,7 +245,7 @@
                 </div>
             </div>
 
-            <!-- Session Timer Banner for PlayStation / Rooms -->
+            <!-- Session Timer Banner -->
             <div id="customer-session-timer-banner" class="hidden bg-[#1b1b1f] border border-[#1877f2]/40 rounded-2xl px-4 py-3 flex items-center justify-between gap-2 animate-slide-in">
                 <div>
                     <div id="cust-session-timer-label" class="text-[11px] font-bold text-[#93c5fd]">الوقت المتبقي للجلسة</div>
@@ -261,7 +261,7 @@
                 </div>
             </div>
 
-            <!-- Active Call Status Card (Shows when a call is active for this table) -->
+            <!-- Active Call Status Card -->
             <div id="customer-status-card" class="hidden rounded-3xl p-5 border-2 bg-[#262116] border-amber-400 transition-all">
                 <div class="flex items-start gap-3.5">
                     <div id="cust-status-icon-box" class="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl shrink-0">
@@ -343,7 +343,7 @@
                             <i id="icon-cust-voice-record" class="fa-solid fa-microphone"></i>
                             <span id="text-cust-voice-record">تسجيل رسالة صوتية وإرسالها</span>
                         </button>
-                        <button id="btn-cust-voice-cancel" type="button" onclick="cancelVoiceRecording('customer')" class="hidden py-3 px-3.5 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs transition">
+                        <button id="btn-cust-voice-cancel" type="button" onclick="cancelVoiceRecording()" class="hidden py-3 px-3.5 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs transition">
                             إلغاء
                         </button>
                     </div>
@@ -351,20 +351,7 @@
 
                 <div id="customer-shortcuts-row">
                     <label id="customer-shortcuts-label" class="block text-xs font-extrabold text-[#f4ebd9] mb-2.5">طلبات سريعة بضغطة واحدة:</label>
-                    <div id="customer-shortcuts-list" class="flex flex-wrap gap-2 mb-4">
-                        <button onclick="sendQuickShortcut('ماء بارد')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition">
-                            💧 ماء
-                        </button>
-                        <button onclick="sendQuickShortcut('مناديل إضافية')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition">
-                            🧻 مناديل
-                        </button>
-                        <button onclick="sendQuickShortcut('ذراع تحكم PlayStation إضافي')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition">
-                            🎮 ذراع تحكم
-                        </button>
-                        <button onclick="sendQuickShortcut('تغيير قناة / إعداد TV')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition">
-                            📺 إعداد TV
-                        </button>
-                    </div>
+                    <div id="customer-shortcuts-list" class="flex flex-wrap gap-2 mb-4"></div>
                 </div>
 
                 <div id="customer-custom-note-box" class="flex gap-2">
@@ -411,7 +398,6 @@
          2. WAITER & STAFF DASHBOARD VIEW
     ====================================================================== -->
     <main id="view-waiter" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 py-6">
-        <!-- Staff Mode Switcher: Live Calls vs Admin Dashboard -->
         <div class="flex flex-wrap items-center justify-between gap-3 mb-5 bg-[#1b1b1f] p-2.5 rounded-2xl border border-white/10">
             <div class="flex items-center gap-2">
                 <button id="tab-waiter-calls" onclick="switchStaffSubView('calls')" class="px-4 py-2 rounded-xl bg-[#1877f2] text-white font-extrabold text-xs sm:text-sm transition flex items-center gap-2">
@@ -469,7 +455,7 @@
             </div>
         </div>
 
-        <!-- Session Timers Bar (PlayStation / Rooms / Tables) -->
+        <!-- Session Timers Bar -->
         <div class="bg-[#1b1b1f] border border-white/10 rounded-2xl p-4 mb-5">
             <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div class="flex items-center gap-2">
@@ -521,10 +507,9 @@
         </div>
 
         <!-- =================================================================
-             ADMIN DASHBOARD SECTION (Linked to Branding, Customer Screen & Calls)
+             ADMIN DASHBOARD SECTION
         ================================================================== -->
         <section id="admin-dashboard-section" class="hidden space-y-6 animate-slide-in">
-            <!-- Top KPI Cards -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
                 <div class="bg-[#1b1b1f] p-4 rounded-2xl border border-white/10">
                     <p class="text-xs font-bold text-slate-400">إجمالي الطلبات المسجلة</p>
@@ -548,7 +533,6 @@
                 </div>
             </div>
 
-            <!-- Quick Control Cards Linked to Existing Modals & Live Preview -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div class="bg-[#1b1b1f] rounded-3xl p-5 border border-white/10 flex flex-col justify-between gap-4">
                     <div>
@@ -598,7 +582,6 @@
                 </div>
             </div>
 
-            <!-- Breakdown by Service Type + Live Customer Screen Snapshot -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div class="bg-[#1b1b1f] rounded-3xl p-5 border border-white/10">
                     <div class="flex items-center justify-between mb-4">
@@ -621,7 +604,6 @@
                 </div>
             </div>
 
-            <!-- Recent Calls Log Table -->
             <div class="bg-[#1b1b1f] rounded-3xl p-5 border border-white/10">
                 <h3 class="font-black text-white text-base mb-3">سجل النداءات والطلبات الأخيرة</h3>
                 <div class="overflow-x-auto">
@@ -675,14 +657,6 @@
                 <button onclick="verifyStaffPin()" class="w-full py-3 rounded-2xl bg-[#1877f2] hover:bg-blue-500 text-white font-bold text-sm transition">
                     دخول إلى البوابة
                 </button>
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="fillQuickPin('waiter')" type="button" class="py-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#f4ebd9] font-bold text-xs transition">
-                        دخول ويتر (1234)
-                    </button>
-                    <button onclick="fillQuickPin('admin')" type="button" class="py-2 rounded-xl bg-[#1877f2]/20 hover:bg-[#1877f2]/30 text-[#93c5fd] font-bold text-xs transition">
-                        دخول أدمن (9090)
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -906,7 +880,7 @@
         </div>
     </div>
 
-    <!-- 2. Manual QR Code Manager Modal (Admin Controlled - Separate Table & Room) -->
+    <!-- 2. Manual QR Code Manager Modal -->
     <div id="qr-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-[#1b1b1f] text-white border border-white/10 rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-slide-in">
             <div class="p-4 sm:p-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 bg-[#1b1b1f] no-print">
@@ -951,7 +925,6 @@
                 </div>
             </div>
 
-            <!-- Manual QR Creation Bar -->
             <div class="p-4 bg-[#16161a] border-b border-white/10 flex flex-wrap items-end gap-3 no-print">
                 <div class="min-w-[140px]">
                     <label for="manual-qr-kind-select" class="block text-xs font-bold text-slate-300 mb-1">النوع</label>
@@ -1034,7 +1007,11 @@
                 const radius = size * 0.24;
                 ctx.fillStyle = '#121214';
                 ctx.beginPath();
-                ctx.roundRect(0, 0, size, size, radius);
+                if (typeof ctx.roundRect === 'function') {
+                    ctx.roundRect(0, 0, size, size, radius);
+                } else {
+                    ctx.rect(0, 0, size, size);
+                }
                 ctx.fill();
 
                 ctx.fillStyle = '#f4ebd9';
@@ -1099,35 +1076,13 @@
             }
         }
 
+        // Register the external sw.js file cleanly (avoids duplicate data: URL SW conflicts)
         function registerSameOriginServiceWorker() {
             if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
-            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') return;
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
             if (window.self !== window.top) return;
 
-            const swSource = [
-                "const CACHE_NAME = 'plus90-lounge-v1';",
-                "self.addEventListener('install', () => { self.skipWaiting(); });",
-                "self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });",
-                "self.addEventListener('fetch', (event) => {",
-                "  if (!event.request || event.request.method !== 'GET') return;",
-                "  const reqUrl = new URL(event.request.url);",
-                "  if (reqUrl.origin !== self.location.origin) return;",
-                "  event.respondWith(",
-                "    fetch(event.request)",
-                "      .then((res) => {",
-                "        if (res && res.status === 200) {",
-                "          const clone = res.clone();",
-                "          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => {});",
-                "        }",
-                "        return res;",
-                "      })",
-                "      .catch(() => caches.match(event.request))",
-                "  );",
-                "});"
-            ].join('\n');
-
-            const swDataUrl = 'data:text/javascript;charset=utf-8,' + encodeURIComponent(swSource);
-            navigator.serviceWorker.register(swDataUrl, { scope: './' })
+            navigator.serviceWorker.register('./sw.js', { scope: './' })
                 .then((reg) => { swRegistration = reg; })
                 .catch(() => {});
         }
@@ -1141,9 +1096,9 @@
                 const startUrl = `./?role=staff&room=${roomQuery}`;
 
                 const manifestObj = {
-                    id: `./?app=plus90-staff&room=${roomQuery}`,
+                    id: './?app=plus90-lounge',
                     name: `${brandName} - ويتر وأدمن`,
-                    short_name: 'Plus 90 App',
+                    short_name: 'Plus 90',
                     description: 'تطبيق استدعاء الويتر والإدارة لـ Plus Ninety Lounge',
                     start_url: startUrl,
                     scope: './',
@@ -1315,11 +1270,12 @@
             customerCurrentCallId: null
         };
 
+        // Unified service labels & icons matching customer screen buttons
         const REQUEST_TYPES = {
             call_waiter: { label: 'استدعاء النادل', icon: 'fa-bell-concierge', badgeBg: 'bg-amber-50 text-amber-800 border-amber-200' },
             request_bill: { label: 'طلب الفاتورة', icon: 'fa-file-invoice-dollar', badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
-            request_menu: { label: 'إضافة طلب / منيو', icon: 'fa-utensils', badgeBg: 'bg-blue-50 text-blue-800 border-blue-200' },
-            clean_table: { label: 'تنظيف الطاولة', icon: 'fa-sparkles', badgeBg: 'bg-purple-50 text-purple-800 border-purple-200' },
+            request_menu: { label: 'إضافة طلبات', icon: 'fa-utensils', badgeBg: 'bg-blue-50 text-blue-800 border-blue-200' },
+            clean_table: { label: 'خدمة اللعب / الطاولة', icon: 'fa-gamepad', badgeBg: 'bg-purple-50 text-purple-800 border-purple-200' },
             custom_note: { label: 'طلب خاص / ملاحظة', icon: 'fa-comment-dots', badgeBg: 'bg-rose-50 text-rose-800 border-rose-200' },
             voice_note: { label: 'رسالة صوتية', icon: 'fa-microphone', badgeBg: 'bg-sky-50 text-sky-900 border-sky-200' }
         };
@@ -1350,13 +1306,6 @@
 
         function closeStaffLoginModal() {
             document.getElementById('staff-login-modal').classList.add('hidden');
-        }
-
-        function fillQuickPin(level) {
-            const input = document.getElementById('staff-pin-input');
-            if (!input) return;
-            input.value = level === 'admin' ? state.adminPin : state.waiterPin;
-            verifyStaffPin();
         }
 
         function verifyStaffPin() {
@@ -1420,8 +1369,6 @@
                 err.classList.remove('hidden');
             }
         }
-
-
 
         const DASHBOARD_STORAGE_KEY_PREFIX = 'plus90_dashboard_state_';
 
@@ -1628,6 +1575,12 @@
             }
         }
 
+        function sanitizeUrl(url, fallback = '#') {
+            const trimmed = String(url || '').trim();
+            if (!trimmed) return fallback;
+            if (/^(https?:\/\/|data:image\/)/i.test(trimmed)) return trimmed;
+            return fallback;
+        }
 
         function applyBrandingToUI() {
             const b = state.branding;
@@ -1635,7 +1588,7 @@
             setupPWA(b.name, b.logoText);
 
             const safeLogoText = escapeHTML(b.logoText || '90+');
-            const safeLogoUrl = (b.logoUrl || '').trim();
+            const safeLogoUrl = sanitizeUrl((b.logoUrl || '').trim(), '');
             const logoMarkup = safeLogoUrl
                 ? `<img src="${escapeHTML(safeLogoUrl)}" alt="${escapeHTML(b.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" class="w-full h-full object-cover"><span style="display:none" class="w-full h-full items-center justify-center text-sm font-black text-slate-950">${safeLogoText}</span>`
                 : `<span class="text-[7px] font-extrabold tracking-widest text-slate-700 uppercase">LOUNGE</span><span class="text-base font-black text-slate-950 leading-none">${safeLogoText}</span>`;
@@ -1661,7 +1614,7 @@
             if (noqrTitle) noqrTitle.textContent = `أهلاً بك في ${b.name}`;
             if (noqrBio) noqrBio.textContent = b.bio;
 
-            const cleanLink = (b.link || '').trim() || DEFAULT_BRANDING.link;
+            const cleanLink = sanitizeUrl(b.link, DEFAULT_BRANDING.link);
             const displayLink = cleanLink.replace(/^https?:\/\//i, '');
             if (noqrLink) noqrLink.href = cleanLink;
             if (noqrLinkText) noqrLinkText.textContent = displayLink;
@@ -1671,9 +1624,9 @@
             }
             if (footerBrand) footerBrand.textContent = `${b.name} • 24H`;
 
-            const fbUrl = (b.facebookUrl || '').trim() || DEFAULT_BRANDING.facebookUrl;
-            const igUrl = (b.instagramUrl || '').trim() || DEFAULT_BRANDING.instagramUrl;
-            const ttUrl = (b.tiktokUrl || '').trim() || DEFAULT_BRANDING.tiktokUrl;
+            const fbUrl = sanitizeUrl(b.facebookUrl, DEFAULT_BRANDING.facebookUrl);
+            const igUrl = sanitizeUrl(b.instagramUrl, DEFAULT_BRANDING.instagramUrl);
+            const ttUrl = sanitizeUrl(b.tiktokUrl, DEFAULT_BRANDING.tiktokUrl);
 
             ['social-fb-noqr', 'social-fb-footer'].forEach((id) => {
                 const el = document.getElementById(id);
@@ -1730,7 +1683,6 @@
                 });
                 return;
             }
-            // In customer view: if admin PIN is entered, open branding & file picker; otherwise keep secret 5-tap shortcut available
             handleSecretLogoTap();
         }
 
@@ -1782,7 +1734,7 @@
             const previewEl = document.getElementById('brand-modal-logo-preview');
             if (!previewEl) return;
             const logoText = (document.getElementById('brand-input-logo-text')?.value || '').trim() || '90+';
-            const logoUrl = (document.getElementById('brand-input-logo-url')?.value || '').trim();
+            const logoUrl = sanitizeUrl((document.getElementById('brand-input-logo-url')?.value || '').trim(), '');
             if (logoUrl) {
                 previewEl.innerHTML = `<img src="${escapeHTML(logoUrl)}" alt="Logo Preview" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" class="w-full h-full object-cover"><span style="display:none" class="w-full h-full items-center justify-center text-sm font-black text-slate-950">${escapeHTML(logoText)}</span>`;
             } else {
@@ -1822,11 +1774,11 @@
                 state.branding = {
                     name: document.getElementById('brand-input-name').value.trim() || DEFAULT_BRANDING.name,
                     logoText: document.getElementById('brand-input-logo-text').value.trim() || DEFAULT_BRANDING.logoText,
-                    logoUrl: document.getElementById('brand-input-logo-url').value.trim(),
-                    link: document.getElementById('brand-input-link').value.trim() || DEFAULT_BRANDING.link,
-                    facebookUrl: document.getElementById('brand-input-facebook').value.trim() || DEFAULT_BRANDING.facebookUrl,
-                    instagramUrl: document.getElementById('brand-input-instagram').value.trim() || DEFAULT_BRANDING.instagramUrl,
-                    tiktokUrl: document.getElementById('brand-input-tiktok').value.trim() || DEFAULT_BRANDING.tiktokUrl,
+                    logoUrl: sanitizeUrl(document.getElementById('brand-input-logo-url').value.trim(), ''),
+                    link: sanitizeUrl(document.getElementById('brand-input-link').value.trim(), DEFAULT_BRANDING.link),
+                    facebookUrl: sanitizeUrl(document.getElementById('brand-input-facebook').value.trim(), DEFAULT_BRANDING.facebookUrl),
+                    instagramUrl: sanitizeUrl(document.getElementById('brand-input-instagram').value.trim(), DEFAULT_BRANDING.instagramUrl),
+                    tiktokUrl: sanitizeUrl(document.getElementById('brand-input-tiktok').value.trim(), DEFAULT_BRANDING.tiktokUrl),
                     tagline: document.getElementById('brand-input-tagline').value.trim() || DEFAULT_BRANDING.tagline,
                     bio: document.getElementById('brand-input-bio').value.trim() || DEFAULT_BRANDING.bio,
                     desc: document.getElementById('brand-input-desc').value.trim() || DEFAULT_BRANDING.desc
@@ -1957,13 +1909,18 @@
                 });
             }
 
+            // Safely render shortcut buttons using DOM elements & dataset instead of inline JS string interpolation
             const shortcutsList = document.getElementById('customer-shortcuts-list');
             if (shortcutsList) {
-                shortcutsList.innerHTML = cs.shortcuts.map((sc) => `
-                    <button type="button" onclick="sendQuickShortcut('${escapeHTML(sc.note)}')" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition">
-                        ${escapeHTML(sc.emoji)} ${escapeHTML(sc.label)}
-                    </button>
-                `).join('');
+                shortcutsList.innerHTML = '';
+                cs.shortcuts.forEach((sc) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'px-3 py-1.5 rounded-xl bg-white/5 hover:bg-[#1877f2] hover:text-white text-slate-200 border border-white/10 text-xs font-bold transition';
+                    btn.textContent = `${sc.emoji} ${sc.label}`;
+                    btn.addEventListener('click', () => sendQuickShortcut(sc.note));
+                    shortcutsList.appendChild(btn);
+                });
             }
 
             const toggleMap = [
@@ -2136,7 +2093,7 @@
         function exitStaffMode() {
             state.staffLevel = 'waiter';
             updateAdminBadgeUI();
-            const tableQuery = state.customerTable ? `table=${state.customerTable}&` : '';
+            const tableQuery = state.customerTable ? `table=${encodeURIComponent(state.customerTable)}&` : '';
             const cleanUrl = `${window.location.pathname}?${tableQuery}room=${encodeURIComponent(defaultRoomId)}`;
             window.history.replaceState({}, '', cleanUrl);
             applyRoleView('customer');
@@ -2185,7 +2142,6 @@
                 const now = audioCtx.currentTime;
 
                 if (type === 'new_call') {
-                    // رنة جرس مزدوجة أعلى وأطول لتنبيه النادل بوضوح
                     const notes = [
                         { freq: 987.77, start: 0, dur: 0.42 },
                         { freq: 1318.51, start: 0.24, dur: 0.48 },
@@ -2353,7 +2309,6 @@
             }
         }
 
-
         const SYNC_SENDER_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
 
         const SUPABASE_CONFIG = {
@@ -2376,11 +2331,6 @@
                 }
             }
             return supabaseClient;
-        }
-
-        function getCloudRowId(stateKey, customRoomId = null) {
-            const rId = customRoomId || state.roomId || 'plus-ninety-lounge';
-            return `${rId}:${stateKey}`;
         }
 
         async function upsertCloudState(stateKey, payloadData, isGlobal = false) {
@@ -2407,8 +2357,15 @@
         function scheduleCloudDashboardSync() {
             clearTimeout(cloudDashboardSyncTimer);
             cloudDashboardSyncTimer = setTimeout(() => {
+                // Strip heavy base64 audio payloads before syncing dashboard state to cloud DB
+                const lightweightCalls = {};
+                Object.entries(state.activeCalls || {}).forEach(([k, callObj]) => {
+                    const { audioData, waiterAudioData, ...rest } = callObj;
+                    lightweightCalls[k] = rest;
+                });
+
                 const dashboardPayload = {
-                    activeCalls: state.activeCalls || {},
+                    activeCalls: lightweightCalls,
                     completedCount: Number(state.completedCount || 0),
                     totalRecordedCount: Number(state.totalRecordedCount || 0),
                     serviceCounts: state.serviceCounts || {
@@ -2439,7 +2396,21 @@
             } else if (stateKey === 'dashboard' && typeof envelope.data === 'object') {
                 const d = envelope.data;
                 if (d.activeCalls && typeof d.activeCalls === 'object') {
-                    state.activeCalls = d.activeCalls;
+                    // Preserve any local audio blobs for existing active call IDs
+                    const mergedCalls = {};
+                    Object.entries(d.activeCalls).forEach(([k, remoteCall]) => {
+                        const existing = state.activeCalls[k];
+                        if (existing && existing.id === remoteCall.id) {
+                            mergedCalls[k] = {
+                                ...remoteCall,
+                                audioData: existing.audioData || remoteCall.audioData || '',
+                                waiterAudioData: existing.waiterAudioData || remoteCall.waiterAudioData || ''
+                            };
+                        } else {
+                            mergedCalls[k] = remoteCall;
+                        }
+                    });
+                    state.activeCalls = mergedCalls;
                 }
                 if (typeof d.completedCount === 'number') state.completedCount = d.completedCount;
                 if (typeof d.totalRecordedCount === 'number') state.totalRecordedCount = d.totalRecordedCount;
@@ -2510,7 +2481,6 @@
                     .subscribe();
             } catch (e) {}
         }
-
 
         function publishRetainedConfig(configKey, payloadData) {
             const isGlobalKey = (configKey === 'branding' || configKey === 'customer_screen' || configKey === 'manual_qrs');
@@ -2718,10 +2688,10 @@
             const cleanId = String(unitId ?? '').trim();
             if (!cleanId) return '--';
             if (unitType === 'room') {
-                return /^room\b|^غرفة\b/i.test(cleanId) ? cleanId : `Room ${cleanId}`;
+                return /^room|^غرفة/i.test(cleanId) ? cleanId : `Room ${cleanId}`;
             }
             const prefix = customPrefix || state.customerScreen?.tablePrefix || 'طاولة رقم';
-            return /^طاولة\b|^table\b/i.test(cleanId) ? cleanId : `${prefix} ${cleanId}`;
+            return /^طاولة|^table/i.test(cleanId) ? cleanId : `${prefix} ${cleanId}`;
         }
 
         function simulateScanTable(tableNum, unitType = 'table') {
@@ -2748,10 +2718,10 @@
                 tableInterface.classList.remove('hidden');
                 const cleanVal = String(state.customerTable).trim();
                 if (state.customerUnitType === 'room') {
-                    if (lockedPrefixEl) lockedPrefixEl.textContent = /^room\b|^غرفة\b/i.test(cleanVal) ? '' : 'Room';
+                    if (lockedPrefixEl) lockedPrefixEl.textContent = /^room|^غرفة/i.test(cleanVal) ? '' : 'Room';
                     if (lockedNumEl) lockedNumEl.textContent = cleanVal;
                 } else {
-                    if (lockedPrefixEl) lockedPrefixEl.textContent = /^طاولة\b|^table\b/i.test(cleanVal) ? '' : (state.customerScreen?.tablePrefix || 'طاولة رقم');
+                    if (lockedPrefixEl) lockedPrefixEl.textContent = /^طاولة|^table/i.test(cleanVal) ? '' : (state.customerScreen?.tablePrefix || 'طاولة رقم');
                     if (lockedNumEl) lockedNumEl.textContent = cleanVal;
                 }
             } else {
@@ -2799,7 +2769,7 @@
 
         function cancelCustomerCall() {
             if (!state.customerTable || !state.activeCalls[state.customerTable]) return;
-            publishEvent(`tables/${state.customerTable}`, {
+            publishEvent(`tables/${encodeURIComponent(state.customerTable)}`, {
                 action: 'CANCEL_CALL',
                 table: state.customerTable
             });
@@ -3207,7 +3177,7 @@
                     <h4 class="text-xl font-black text-white mb-3">${escapeHTML(cardTitle)}</h4>
                     <div id="${boxId}" class="p-2.5 bg-[#f4ebd9] rounded-xl border border-white/15 mb-3"></div>
                     <div class="no-print flex items-center gap-3 text-xs font-bold mt-1">
-                        <a href="${escapeHTML(item.url)}" target="_blank" rel="noopener noreferrer" class="text-[#60a5fa] hover:underline">
+                        <a href="${escapeHTML(sanitizeUrl(item.url, '#'))}" target="_blank" rel="noopener noreferrer" class="text-[#60a5fa] hover:underline">
                             ${previewText} <i class="fa-solid fa-arrow-up-right-from-square mr-0.5"></i>
                         </a>
                         <button type="button" onclick="deleteManualQRCode('${escapeHTML(item.id)}')" class="text-rose-400 hover:text-rose-300 transition">
@@ -3317,7 +3287,6 @@
         }
 
         document.addEventListener('pointerdown', requestMobileNotificationPermission, { once: true });
-
 
         const SESSION_TIMERS_KEY_PREFIX = 'plus90_session_timers_';
 
@@ -3540,7 +3509,8 @@
         let activeVoiceChunks = [];
         let activeVoiceTimer = null;
         let activeVoiceSeconds = 0;
-        let activeVoiceContext = null; // { mode: 'customer' | 'waiter', targetKey?: string }
+        let activeVoiceContext = null;
+        let isVoiceCancelled = false;
 
         function getSupportedAudioMimeType() {
             if (typeof MediaRecorder === 'undefined') return '';
@@ -3597,6 +3567,7 @@
         }
 
         function cancelVoiceRecording() {
+            isVoiceCancelled = true;
             const rec = activeVoiceRecorder;
             activeVoiceRecorder = null;
             activeVoiceChunks = [];
@@ -3618,6 +3589,8 @@
                 return;
             }
 
+            isVoiceCancelled = false;
+
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     audio: {
@@ -3626,6 +3599,11 @@
                         channelCount: 1
                     }
                 });
+
+                if (isVoiceCancelled) {
+                    stream.getTracks().forEach(t => t.stop());
+                    return;
+                }
 
                 const mimeType = getSupportedAudioMimeType();
                 const options = { audioBitsPerSecond: 8000 };
@@ -3645,7 +3623,7 @@
                 activeVoiceContext = context;
 
                 recorder.ondataavailable = (ev) => {
-                    if (ev.data && ev.data.size > 0) {
+                    if (!isVoiceCancelled && ev.data && ev.data.size > 0) {
                         activeVoiceChunks.push(ev.data);
                     }
                 };
@@ -3654,6 +3632,7 @@
                     const finalMime = recorder.mimeType || mimeType || 'audio/webm';
                     const blob = new Blob(activeVoiceChunks, { type: finalMime });
                     const finishedCtx = activeVoiceContext;
+                    const wasCancelled = isVoiceCancelled;
 
                     activeVoiceRecorder = null;
                     activeVoiceChunks = [];
@@ -3661,7 +3640,7 @@
                     resetVoiceUIState();
                     activeVoiceContext = null;
 
-                    if (!blob || blob.size < 300 || !finishedCtx) return;
+                    if (wasCancelled || !blob || blob.size < 300 || !finishedCtx) return;
 
                     if (blob.size > 900000) {
                         showToast('التسجيل طويل جداً، يرجى اختصار الرسالة الصوتية (أقل من دقيقة)', 'slate');
@@ -3785,7 +3764,6 @@
             });
             showToast(`تم إرسال الرد الصوتي إلى ${formatUnitDisplay(key, unitType, 'طاولة')}`, 'emerald');
         }
-
 
         window.addEventListener('DOMContentLoaded', () => {
             loadDashboardState();
