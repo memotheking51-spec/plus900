@@ -406,7 +406,16 @@
                 <i class="fa-solid fa-code-branch"></i>
                 <span>الفرع الحالي:</span>
             </span>
-            <select id="staff-branch-select" onchange="onStaffBranchChange()" class="bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-extrabold focus:outline-none focus:border-[#1877f2]"></select>
+
+            <!-- يظهر للأدمن فقط للتنقل بين الفروع -->
+            <select id="staff-branch-select" onchange="onStaffBranchChange()" class="hidden bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-extrabold focus:outline-none focus:border-[#1877f2]"></select>
+
+            <!-- يظهر للويتر كفرع ثابت غير قابل للتغيير -->
+            <span id="waiter-locked-branch-badge" class="inline-flex items-center gap-1.5 bg-[#121214] text-[#f4ebd9] border border-white/15 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-extrabold">
+                <i class="fa-solid fa-lock text-amber-400 text-xs"></i>
+                <span id="waiter-locked-branch-name">Dokki Branch</span>
+            </span>
+
             <span id="staff-branch-subtitle" class="text-xs text-slate-400">بيانات وطلبات ونداءات مستقلة تماماً</span>
         </div>
         <button id="btn-manage-branches" type="button" onclick="openBranchesManagerModal()" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-[#f4ebd9] font-extrabold text-xs transition flex items-center gap-1.5">
@@ -906,11 +915,9 @@
                     <p class="text-xs text-slate-400">فصل كامل بين QR الطاولات و QR الغرف (Room) — يُضاف يدوياً بواسطة الأدمن</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    
                     <label class="text-xs font-bold text-slate-300">الفرع:</label>
                     <select id="qr-branch-select" onchange="onQRBranchChange()" class="bg-[#121214] border border-white/15 rounded-xl px-2.5 py-1.5 font-bold text-xs sm:text-sm text-[#93c5fd] focus:outline-none focus:border-[#1877f2]"></select>
                     <label class="text-xs font-bold text-slate-300">القناة / القسم:</label>
-
                     <select id="qr-room-select" onchange="onQRRoomChange()" class="bg-[#121214] border border-white/15 rounded-xl px-2.5 py-1.5 font-bold text-xs sm:text-sm text-[#f4ebd9] focus:outline-none focus:border-[#1877f2]">
                         <option value="plus-ninety-lounge">القاعة الرئيسية (Plus 90)</option>
                         <option value="room-1">غرفة 1 (Room 1)</option>
@@ -1009,7 +1016,6 @@
             </div>
         </div>
     </div>
-
 
     <!-- 4. Admin Branches Manager Modal (Add / Edit / Delete Branches) -->
     <div id="branches-manager-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1150,7 +1156,6 @@
             }
         }
 
-        // Register the external sw.js file cleanly (avoids duplicate data: URL SW conflicts)
         function registerSameOriginServiceWorker() {
             if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
             if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
@@ -1318,7 +1323,7 @@
 
         const state = {
             role: isStaffUrlRequested ? 'staff' : 'customer',
-            staffLevel: 'waiter',
+            staffLevel: roleParam === 'admin' ? 'admin' : 'waiter',
             customerTable: extractedTable,
             customerUnitType: extractedUnitType,
             roomId: defaultRoomId,
@@ -1345,7 +1350,6 @@
             customerCurrentCallId: null
         };
 
-        // Unified service labels & icons matching customer screen buttons
         const REQUEST_TYPES = {
             call_waiter: { label: 'استدعاء النادل', icon: 'fa-bell-concierge', badgeBg: 'bg-amber-50 text-amber-800 border-amber-200' },
             request_bill: { label: 'طلب الفاتورة', icon: 'fa-file-invoice-dollar', badgeBg: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
@@ -1504,6 +1508,44 @@
             } catch (e) {}
         }
 
+        function applyBranchPermissionUI() {
+            const isAdmin = state.staffLevel === 'admin';
+            const staffSel = document.getElementById('staff-branch-select');
+            const lockedBadge = document.getElementById('waiter-locked-branch-badge');
+            const lockedName = document.getElementById('waiter-locked-branch-name');
+            const manageBtn = document.getElementById('btn-manage-branches');
+            const activeBranch = getBranchById(state.branchId);
+
+            if (lockedName && activeBranch) {
+                lockedName.textContent = activeBranch.name;
+            }
+
+            if (staffSel) {
+                if (isAdmin) {
+                    staffSel.classList.remove('hidden');
+                } else {
+                    staffSel.classList.add('hidden');
+                    staffSel.value = state.branchId;
+                }
+            }
+
+            if (lockedBadge) {
+                if (isAdmin) {
+                    lockedBadge.classList.add('hidden');
+                } else {
+                    lockedBadge.classList.remove('hidden');
+                }
+            }
+
+            if (manageBtn) {
+                if (isAdmin) {
+                    manageBtn.classList.remove('hidden');
+                } else {
+                    manageBtn.classList.add('hidden');
+                }
+            }
+        }
+
         function updateAdminBadgeUI() {
             const pill = document.getElementById('admin-lock-pill');
             const dashBadge = document.getElementById('dash-lock-badge');
@@ -1520,6 +1562,7 @@
                     ? 'text-[10px] bg-emerald-500/25 text-emerald-200 px-1.5 py-0.5 rounded-md'
                     : 'text-[10px] bg-black/40 text-[#93c5fd] px-1.5 py-0.5 rounded-md';
             }
+            applyBranchPermissionUI();
         }
 
         function switchStaffSubView(subView) {
@@ -1986,7 +2029,6 @@
                 });
             }
 
-            // Safely render shortcut buttons using DOM elements & dataset instead of inline JS string interpolation
             const shortcutsList = document.getElementById('customer-shortcuts-list');
             if (shortcutsList) {
                 shortcutsList.innerHTML = '';
@@ -2275,20 +2317,6 @@
         let localChannel = null;
         const processedMessageIds = new Set();
 
-        try {
-            if ('BroadcastChannel' in window) {
-                localChannel = new BroadcastChannel(`nidaa_sync_${state.branchId || 'dokki-branch'}_${state.roomId}`);
-                localChannel.onmessage = (event) => {
-                    if (!event.data) return;
-                    if (event.data.action === 'CONFIG_SYNC') {
-                        handleIncomingConfigSync('', event.data);
-                        return;
-                    }
-                    handleIncomingEvent(event.data);
-                };
-            }
-        } catch (e) {}
-
         function updateMQTTStatusUI(status) {
             const staffDot = document.getElementById('staff-mqtt-dot');
             const staffText = document.getElementById('staff-mqtt-text');
@@ -2435,7 +2463,6 @@
         function scheduleCloudDashboardSync() {
             clearTimeout(cloudDashboardSyncTimer);
             cloudDashboardSyncTimer = setTimeout(() => {
-                // Strip heavy base64 audio payloads before syncing dashboard state to cloud DB
                 const lightweightCalls = {};
                 Object.entries(state.activeCalls || {}).forEach(([k, callObj]) => {
                     const { audioData, waiterAudioData, ...rest } = callObj;
@@ -2471,10 +2498,11 @@
                 handleIncomingConfigSync('/manual_qrs', envelope);
             } else if (stateKey === 'session_timers') {
                 handleIncomingConfigSync('/session_timers', envelope);
+            } else if (stateKey === 'branches') {
+                handleIncomingConfigSync('/branches', envelope);
             } else if (stateKey === 'dashboard' && typeof envelope.data === 'object') {
                 const d = envelope.data;
                 if (d.activeCalls && typeof d.activeCalls === 'object') {
-                    // Preserve any local audio blobs for existing active call IDs
                     const mergedCalls = {};
                     Object.entries(d.activeCalls).forEach(([k, remoteCall]) => {
                         const existing = state.activeCalls[k];
@@ -2536,7 +2564,7 @@
         function subscribeToSupabaseRealtime() {
             const sb = initSupabaseClient();
             if (!sb) return;
-            const currentRoom = state.roomId || 'plus-ninety-lounge';
+            const currentRoom = `${state.branchId || 'dokki-branch'}__${state.roomId || 'plus-ninety-lounge'}`;
 
             if (supabaseChannel) {
                 try { sb.removeChannel(supabaseChannel); } catch (e) {}
@@ -2561,7 +2589,7 @@
         }
 
         function publishRetainedConfig(configKey, payloadData) {
-            const isGlobalKey = (configKey === 'branding' || configKey === 'customer_screen' || configKey === 'manual_qrs');
+            const isGlobalKey = (configKey === 'branding' || configKey === 'customer_screen' || configKey === 'manual_qrs' || configKey === 'branches');
             upsertCloudState(configKey, payloadData, isGlobalKey);
             const envelope = {
                 senderId: SYNC_SENDER_ID,
@@ -2592,6 +2620,7 @@
                 : topic.endsWith('/customer_screen') ? 'customer_screen'
                 : topic.endsWith('/manual_qrs') ? 'manual_qrs'
                 : topic.endsWith('/session_timers') ? 'session_timers'
+                : topic.endsWith('/branches') ? 'branches'
                 : (envelope.configKey || '');
 
             const remoteTs = Number(envelope.updatedAt || 0);
@@ -2772,10 +2801,10 @@
             const cleanId = String(unitId ?? '').trim();
             if (!cleanId) return '--';
             if (unitType === 'room') {
-                return /^room|^غرفة/i.test(cleanId) ? cleanId : `Room ${cleanId}`;
+                return /^room |^غرفة /i.test(cleanId) ? cleanId : `Room ${cleanId}`;
             }
             const prefix = customPrefix || state.customerScreen?.tablePrefix || 'طاولة رقم';
-            return /^طاولة|^table/i.test(cleanId) ? cleanId : `${prefix} ${cleanId}`;
+            return /^طاولة |^table /i.test(cleanId) ? cleanId : `${prefix} ${cleanId}`;
         }
 
         function simulateScanTable(tableNum, unitType = 'table') {
@@ -2802,10 +2831,10 @@
                 tableInterface.classList.remove('hidden');
                 const cleanVal = String(state.customerTable).trim();
                 if (state.customerUnitType === 'room') {
-                    if (lockedPrefixEl) lockedPrefixEl.textContent = /^room|^غرفة/i.test(cleanVal) ? '' : 'Room';
+                    if (lockedPrefixEl) lockedPrefixEl.textContent = /^room |^غرفة /i.test(cleanVal) ? '' : 'Room';
                     if (lockedNumEl) lockedNumEl.textContent = cleanVal;
                 } else {
-                    if (lockedPrefixEl) lockedPrefixEl.textContent = /^طاولة|^table/i.test(cleanVal) ? '' : (state.customerScreen?.tablePrefix || 'طاولة رقم');
+                    if (lockedPrefixEl) lockedPrefixEl.textContent = /^طاولة |^table /i.test(cleanVal) ? '' : (state.customerScreen?.tablePrefix || 'طاولة رقم');
                     if (lockedNumEl) lockedNumEl.textContent = cleanVal;
                 }
             } else {
@@ -3095,9 +3124,9 @@
         function formatManualQRCardTitle(label, kind) {
             const clean = String(label || '').trim();
             if (kind === 'room') {
-                return /^room\b|^غرفة\b/i.test(clean) ? clean : `Room ${clean}`;
+                return /^room|^غرفة/i.test(clean) ? clean : `Room ${clean}`;
             }
-            return /^طاولة\b|^table\b/i.test(clean) ? clean : `طاولة رقم ${clean}`;
+            return /^طاولة|^table/i.test(clean) ? clean : `طاولة رقم ${clean}`;
         }
 
         function openQRModal() {
@@ -3850,7 +3879,6 @@
             showToast(`تم إرسال الرد الصوتي إلى ${formatUnitDisplay(key, unitType, 'طاولة')}`, 'emerald');
         }
 
-
         // =====================================================================
         // MULTI-BRANCH ISOLATION & ADMIN MANAGEMENT ENGINE
         // =====================================================================
@@ -3937,9 +3965,6 @@
         state.baseTopic = computeBranchBaseTopic(state.branchId, state.roomId);
         localStorage.setItem('nidaa_topic', state.baseTopic);
 
-        if (localChannel) {
-            try { localChannel.close(); } catch (e) {}
-        }
         if ('BroadcastChannel' in window) {
             localChannel = new BroadcastChannel(`nidaa_sync_${state.branchId}_${state.roomId}`);
             localChannel.onmessage = (event) => {
@@ -3976,6 +4001,8 @@
             if (subEl && activeBranch) {
                 subEl.textContent = `${activeBranch.name} • قناة مستقلة: ${activeBranch.id}`;
             }
+
+            applyBranchPermissionUI();
         }
 
         function switchActiveBranch(newBranchId, syncUrl = true) {
@@ -3986,7 +4013,6 @@
             state.baseTopic = computeBranchBaseTopic(state.branchId, state.roomId);
             localStorage.setItem('nidaa_topic', state.baseTopic);
 
-            // Reset in-memory call state before loading isolated branch data
             state.activeCalls = {};
             state.completedCount = 0;
             state.totalRecordedCount = 0;
@@ -4051,16 +4077,32 @@
         function onStaffBranchChange() {
             const sel = document.getElementById('staff-branch-select');
             if (!sel) return;
-            switchActiveBranch(sel.value, true);
+
+            const requestedBranchId = sel.value;
+            if (requestedBranchId === state.branchId) return;
+
+            if (state.staffLevel !== 'admin') {
+                sel.value = state.branchId;
+                requireAdminPin(() => {
+                    sel.value = requestedBranchId;
+                    switchActiveBranch(requestedBranchId, true);
+                    showToast(`تم الانتقال إلى ${getBranchById(state.branchId).name}`, 'emerald');
+                });
+                return;
+            }
+
+            switchActiveBranch(requestedBranchId, true);
             showToast(`تم الانتقال إلى ${getBranchById(state.branchId).name}`, 'emerald');
         }
 
         function onQRBranchChange() {
-            const sel = document.getElementById('qr-branch-select');
-            if (!sel) return;
-            switchActiveBranch(sel.value, true);
-            generateQRCards();
-            showToast(`تم اختيار ${getBranchById(state.branchId).name} لتوليد QR`, 'amber');
+            requireAdminPin(() => {
+                const sel = document.getElementById('qr-branch-select');
+                if (!sel) return;
+                switchActiveBranch(sel.value, true);
+                generateQRCards();
+                showToast(`تم اختيار ${getBranchById(state.branchId).name} لتوليد QR`, 'amber');
+            });
         }
 
         function openBranchesManagerModal() {
