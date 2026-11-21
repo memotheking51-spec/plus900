@@ -1157,12 +1157,17 @@
         }
 
         function registerSameOriginServiceWorker() {
-            if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
-            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
-            if (window.self !== window.top) return;
+            if (!('serviceWorker' in navigator)) return;
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (window.location.protocol !== 'https:' && !isLocal) return;
 
             navigator.serviceWorker.register('./sw.js', { scope: './' })
-                .then((reg) => { swRegistration = reg; })
+                .then((reg) => {
+                    swRegistration = reg;
+                    if (reg.waiting) {
+                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                })
                 .catch(() => {});
         }
 
@@ -1208,16 +1213,27 @@
                 return;
             }
             if (deferredInstallPrompt) {
-                deferredInstallPrompt.prompt();
-                const choice = await deferredInstallPrompt.userChoice;
-                deferredInstallPrompt = null;
-                updateInstallButtonState();
-                if (choice && choice.outcome === 'accepted') {
-                    showToast('تم بدء تثبيت التطبيق على الجهاز...', 'emerald');
+                try {
+                    deferredInstallPrompt.prompt();
+                    const choice = await deferredInstallPrompt.userChoice;
+                    deferredInstallPrompt = null;
+                    updateInstallButtonState();
+                    if (choice && choice.outcome === 'accepted') {
+                        showToast('تم بدء تثبيت التطبيق على الجهاز...', 'emerald');
+                    } else {
+                        showToast('تم إلغاء نافذة التثبيت، يمكنك المحاولة مجدداً من قائمة المتصفح', 'amber');
+                    }
+                } catch (e) {
+                    showToast('افتح قائمة المتصفح (⋮) واختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية"', 'amber');
                 }
                 return;
             }
-            showToast('افتح رابط GitHub Pages من Chrome/Edge/Safari واختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية"', 'amber');
+            const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+            if (isIOS) {
+                showToast('في Safari على iPhone: اضغط زر المشاركة (مربع بسهم للأعلى) ثم اختر "إضافة إلى الشاشة الرئيسية"', 'amber');
+            } else {
+                showToast('تأكد من فتح الرابط عبر HTTPS (مثل GitHub Pages) وتوفر ملف logo.png في نفس المجلد، أو اختر "تثبيت التطبيق" من قائمة المتصفح', 'amber');
+            }
         }
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -1360,19 +1376,42 @@
         }
 
         function verifyStaffPin() {
-            const enteredPin = document.getElementById('staff-pin-input').value.trim();
+            const enteredPin = String(document.getElementById('staff-pin-input').value || '').trim();
             const errorEl = document.getElementById('staff-pin-error');
+            if (!state.branches || !state.branches.length) {
+                state.branches = loadBranchesList();
+            }
 
             const activeBranchObj = getBranchById(state.branchId);
-            const effectiveWaiterPin = (activeBranchObj && activeBranchObj.waiterPin) ? activeBranchObj.waiterPin : state.waiterPin;
-            if (enteredPin === state.adminPin) {
+            let storedBranches = [];
+            try {
+                storedBranches = JSON.parse(localStorage.getItem('plus90_branches_list') || '[]');
+            } catch (e) {}
+            const storedBranchObj = Array.isArray(storedBranches)
+                ? storedBranches.find(b => b && b.id === state.branchId)
+                : null;
+
+            const branchPins = [
+                activeBranchObj && activeBranchObj.waiterPin,
+                storedBranchObj && storedBranchObj.waiterPin
+            ].map(p => String(p || '').trim()).filter(Boolean);
+
+            const globalWaiterPins = [
+                state.waiterPin,
+                localStorage.getItem('nidaa_waiter_pin'),
+                localStorage.getItem('nidaa_staff_pin')
+            ].map(p => String(p || '').trim()).filter(Boolean);
+
+            const cleanAdminPin = String(state.adminPin || localStorage.getItem('nidaa_admin_pin') || '9090').trim();
+
+            if (enteredPin === cleanAdminPin) {
                 state.staffLevel = 'admin';
                 closeStaffLoginModal();
                 const staffUrl = `${window.location.pathname}?role=staff&branch=${encodeURIComponent(state.branchId)}&room=${encodeURIComponent(defaultRoomId)}`;
                 window.history.replaceState({}, '', staffUrl);
                 applyRoleView('staff');
-                showToast(`تم تسجيل الدخول بصلاحية الأدمن (${activeBranchObj.name})`, 'emerald');
-            } else if (enteredPin === effectiveWaiterPin || enteredPin === state.waiterPin) {
+                showToast(`تم تسجيل الدخول بصلاحية الأدمن (${(activeBranchObj && activeBranchObj.name) || state.branchId})`, 'emerald');
+            } else if (branchPins.includes(enteredPin) || globalWaiterPins.includes(enteredPin)) {
                 state.staffLevel = 'waiter';
                 closeStaffLoginModal();
                 const staffUrl = `${window.location.pathname}?role=staff&branch=${encodeURIComponent(state.branchId)}&room=${encodeURIComponent(defaultRoomId)}`;
