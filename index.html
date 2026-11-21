@@ -1168,8 +1168,9 @@
 
         function setupPWA(brandName = 'Plus Ninety Lounge', logoText = '90+') {
             try {
-                const icon192 = buildAppIconCanvasDataUrl(logoText, 192);
-                const icon512 = buildAppIconCanvasDataUrl(logoText, 512);
+                const customLogo = (state.branding && state.branding.logoUrl) ? state.branding.logoUrl : './logo.png';
+                const icon192 = customLogo;
+                const icon512 = customLogo;
                 const iconMime = icon512.startsWith('data:image/png') ? 'image/png' : 'image/svg+xml';
                 const branchQuery = encodeURIComponent(state.branchId || 'dokki-branch');
                 const roomQuery = encodeURIComponent(defaultRoomId);
@@ -1273,7 +1274,7 @@
         const DEFAULT_BRANDING = {
             name: 'Plus Ninety Lounge',
             logoText: '90+',
-            logoUrl: '',
+            logoUrl: './logo.png',
             link: 'https://linktr.ee/plusninetylounge',
             facebookUrl: 'https://www.facebook.com/plus90eg',
             instagramUrl: 'https://www.instagram.com/plus_ninety_lounge?igsh=MWJiYXkyZ2NiZWQxNg%3D%3D&utm_source=qr',
