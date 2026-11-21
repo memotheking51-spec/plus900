@@ -1,8 +1,9 @@
-const CACHE_NAME = 'plus90-lounge-v10-branches';
+const CACHE_NAME = 'plus90-lounge-v11-branches';
 const CORE_ASSETS = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './logo.png'
 ];
 
 self.addEventListener('install', (event) => {
