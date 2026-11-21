@@ -14,6 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -244,6 +245,22 @@
                 </div>
             </div>
 
+            <!-- Session Timer Banner for PlayStation / Rooms -->
+            <div id="customer-session-timer-banner" class="hidden bg-[#1b1b1f] border border-[#1877f2]/40 rounded-2xl px-4 py-3 flex items-center justify-between gap-2 animate-slide-in">
+                <div>
+                    <div id="cust-session-timer-label" class="text-[11px] font-bold text-[#93c5fd]">الوقت المتبقي للجلسة</div>
+                    <div id="cust-session-timer-clock" class="font-mono text-base font-black text-emerald-300">60:00</div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="extendUnitSessionTimer(state.customerTable, 30)" class="px-2.5 py-1.5 rounded-xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold text-[11px] transition">
+                        +30 دقيقة
+                    </button>
+                    <button type="button" onclick="sendQuickShortcut('طلب تمديد وقت الجلسة')" class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-[#f4ebd9] font-bold text-[11px] transition">
+                        إبلاغ النادل
+                    </button>
+                </div>
+            </div>
+
             <!-- Active Call Status Card (Shows when a call is active for this table) -->
             <div id="customer-status-card" class="hidden rounded-3xl p-5 border-2 bg-[#262116] border-amber-400 transition-all">
                 <div class="flex items-start gap-3.5">
@@ -449,6 +466,35 @@
                     <i class="fa-solid fa-flask text-[#1877f2]"></i>
                     <span>محاكاة نداء طاولة</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- Session Timers Bar (PlayStation / Rooms / Tables) -->
+        <div class="bg-[#1b1b1f] border border-white/10 rounded-2xl p-4 mb-5">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-stopwatch text-[#60a5fa]"></i>
+                    <h3 class="text-sm font-black text-white">مؤقت جلسات PlayStation والغرف</h3>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <input id="timer-unit-input" type="text" placeholder="رقم الطاولة أو Room 1" class="w-36 bg-[#121214] text-white border border-white/15 rounded-xl px-3 py-1.5 font-bold focus:outline-none focus:border-[#1877f2]">
+                    <select id="timer-unit-kind" class="bg-[#121214] text-[#f4ebd9] border border-white/15 rounded-xl px-2.5 py-1.5 font-bold">
+                        <option value="table">طاولة</option>
+                        <option value="room">غرفة Room</option>
+                    </select>
+                    <select id="timer-duration-mins" class="bg-[#121214] text-[#f4ebd9] border border-white/15 rounded-xl px-2.5 py-1.5 font-bold">
+                        <option value="30">30 دقيقة</option>
+                        <option value="60" selected>60 دقيقة</option>
+                        <option value="90">90 دقيقة</option>
+                        <option value="120">120 دقيقة</option>
+                    </select>
+                    <button type="button" onclick="startTimerFromWaiterBar()" class="px-3.5 py-1.5 rounded-xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold transition">
+                        بدء المؤقت
+                    </button>
+                </div>
+            </div>
+            <div id="waiter-active-timers-list" class="flex flex-wrap gap-2 text-xs text-slate-400">
+                <span>لا توجد مؤقتات جلسات نشطة حالياً</span>
             </div>
         </div>
 
@@ -1400,6 +1446,7 @@
                 };
                 localStorage.setItem(getDashboardStorageKey(), JSON.stringify(payload));
             } catch (e) {}
+            scheduleCloudDashboardSync();
         }
 
         function loadDashboardState() {
@@ -2309,7 +2356,165 @@
 
         const SYNC_SENDER_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
 
+        const SUPABASE_CONFIG = {
+            url: 'https://qgtklyzrbicxenkztpcy.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFndGtseXpyYmljeGVua3p0cGN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxNzgzOTksImV4cCI6MjExMDc1NDM5OX0.nTnjcjBD2w0BwPxDdzGH0VwTsiyVZ68Qr5Fno_Ie8IA',
+            table: 'lounge_state'
+        };
+
+        let supabaseClient = null;
+        let supabaseChannel = null;
+        let cloudDashboardSyncTimer = null;
+
+        function initSupabaseClient() {
+            if (supabaseClient) return supabaseClient;
+            if (typeof window.supabase !== 'undefined' && SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey) {
+                try {
+                    supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+                } catch (e) {
+                    supabaseClient = null;
+                }
+            }
+            return supabaseClient;
+        }
+
+        function getCloudRowId(stateKey, customRoomId = null) {
+            const rId = customRoomId || state.roomId || 'plus-ninety-lounge';
+            return `${rId}:${stateKey}`;
+        }
+
+        async function upsertCloudState(stateKey, payloadData, isGlobal = false) {
+            const sb = initSupabaseClient();
+            if (!sb) return;
+            const targetRoom = isGlobal ? 'global' : (state.roomId || 'plus-ninety-lounge');
+            const rowId = `${targetRoom}:${stateKey}`;
+            const envelope = {
+                senderId: SYNC_SENDER_ID,
+                updatedAt: Date.now(),
+                data: payloadData
+            };
+            try {
+                await sb.from(SUPABASE_CONFIG.table).upsert({
+                    id: rowId,
+                    room_id: targetRoom,
+                    state_key: stateKey,
+                    payload: envelope,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'id' });
+            } catch (e) {}
+        }
+
+        function scheduleCloudDashboardSync() {
+            clearTimeout(cloudDashboardSyncTimer);
+            cloudDashboardSyncTimer = setTimeout(() => {
+                const dashboardPayload = {
+                    activeCalls: state.activeCalls || {},
+                    completedCount: Number(state.completedCount || 0),
+                    totalRecordedCount: Number(state.totalRecordedCount || 0),
+                    serviceCounts: state.serviceCounts || {
+                        call_waiter: 0,
+                        request_bill: 0,
+                        request_menu: 0,
+                        clean_table: 0,
+                        custom_note: 0
+                    },
+                    callHistory: Array.isArray(state.callHistory) ? state.callHistory.slice(0, 120) : []
+                };
+                upsertCloudState('dashboard', dashboardPayload, false);
+            }, 250);
+        }
+
+        function applyCloudEnvelope(stateKey, envelope) {
+            if (!envelope || !envelope.data) return;
+            if (envelope.senderId === SYNC_SENDER_ID) return;
+
+            if (stateKey === 'branding') {
+                handleIncomingConfigSync('/branding', envelope);
+            } else if (stateKey === 'customer_screen') {
+                handleIncomingConfigSync('/customer_screen', envelope);
+            } else if (stateKey === 'manual_qrs') {
+                handleIncomingConfigSync('/manual_qrs', envelope);
+            } else if (stateKey === 'session_timers') {
+                handleIncomingConfigSync('/session_timers', envelope);
+            } else if (stateKey === 'dashboard' && typeof envelope.data === 'object') {
+                const d = envelope.data;
+                if (d.activeCalls && typeof d.activeCalls === 'object') {
+                    state.activeCalls = d.activeCalls;
+                }
+                if (typeof d.completedCount === 'number') state.completedCount = d.completedCount;
+                if (typeof d.totalRecordedCount === 'number') state.totalRecordedCount = d.totalRecordedCount;
+                if (d.serviceCounts && typeof d.serviceCounts === 'object') {
+                    state.serviceCounts = { ...state.serviceCounts, ...d.serviceCounts };
+                }
+                if (Array.isArray(d.callHistory)) state.callHistory = d.callHistory;
+                try {
+                    localStorage.setItem(getDashboardStorageKey(), JSON.stringify({
+                        activeCalls: state.activeCalls,
+                        completedCount: state.completedCount,
+                        totalRecordedCount: state.totalRecordedCount,
+                        serviceCounts: state.serviceCounts,
+                        callHistory: state.callHistory
+                    }));
+                } catch (e) {}
+                if (state.role === 'staff') {
+                    renderWaiterDashboard();
+                    if (state.staffSubView === 'dashboard') renderAdminDashboard();
+                } else {
+                    renderCustomerActiveStatus();
+                }
+            }
+        }
+
+        async function loadAllFromSupabase() {
+            const sb = initSupabaseClient();
+            if (!sb) return;
+            const currentRoom = state.roomId || 'plus-ninety-lounge';
+            try {
+                const { data, error } = await sb
+                    .from(SUPABASE_CONFIG.table)
+                    .select('id, room_id, state_key, payload, updated_at')
+                    .in('room_id', ['global', currentRoom]);
+
+                if (error || !Array.isArray(data)) return;
+                data.forEach((row) => {
+                    if (row && row.state_key && row.payload) {
+                        applyCloudEnvelope(row.state_key, row.payload);
+                    }
+                });
+            } catch (e) {}
+        }
+
+        function subscribeToSupabaseRealtime() {
+            const sb = initSupabaseClient();
+            if (!sb) return;
+            const currentRoom = state.roomId || 'plus-ninety-lounge';
+
+            if (supabaseChannel) {
+                try { sb.removeChannel(supabaseChannel); } catch (e) {}
+                supabaseChannel = null;
+            }
+
+            try {
+                supabaseChannel = sb
+                    .channel(`lounge_sync_${currentRoom}`)
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: SUPABASE_CONFIG.table },
+                        (payload) => {
+                            const row = payload && (payload.new || payload.record);
+                            if (!row || !row.state_key || !row.payload) return;
+                            if (row.room_id !== 'global' && row.room_id !== currentRoom) return;
+                            applyCloudEnvelope(row.state_key, row.payload);
+                        }
+                    )
+                    .subscribe();
+            } catch (e) {}
+        }
+
+
         function publishRetainedConfig(configKey, payloadData) {
+            const isGlobalKey = (configKey === 'branding' || configKey === 'customer_screen' || configKey === 'manual_qrs');
+            upsertCloudState(configKey, payloadData, isGlobalKey);
             const envelope = {
                 senderId: SYNC_SENDER_ID,
                 updatedAt: Date.now(),
@@ -2338,6 +2543,7 @@
             const key = topic.endsWith('/branding') ? 'branding'
                 : topic.endsWith('/customer_screen') ? 'customer_screen'
                 : topic.endsWith('/manual_qrs') ? 'manual_qrs'
+                : topic.endsWith('/session_timers') ? 'session_timers'
                 : (envelope.configKey || '');
 
             const remoteTs = Number(envelope.updatedAt || 0);
@@ -2374,6 +2580,12 @@
                 if (qrModal && !qrModal.classList.contains('hidden')) {
                     generateQRCards();
                 }
+            } else if (key === 'session_timers' && envelope.data && typeof envelope.data === 'object') {
+                try {
+                    localStorage.setItem(getSessionTimersKey(), JSON.stringify(envelope.data));
+                } catch (e) {}
+                renderCustomerSessionTimerBanner();
+                if (state.role === 'staff') renderWaiterSessionTimers();
             }
         }
 
@@ -2883,6 +3095,8 @@
             }
 
             loadDashboardState();
+            loadAllFromSupabase();
+            subscribeToSupabaseRealtime();
             initMQTT();
             generateQRCards();
             if (state.role === 'staff') {
@@ -3104,6 +3318,187 @@
 
         document.addEventListener('pointerdown', requestMobileNotificationPermission, { once: true });
 
+
+        const SESSION_TIMERS_KEY_PREFIX = 'plus90_session_timers_';
+
+        function getSessionTimersKey() {
+            return `${SESSION_TIMERS_KEY_PREFIX}${state.roomId || 'default'}`;
+        }
+
+        function loadSessionTimers() {
+            try {
+                const raw = localStorage.getItem(getSessionTimersKey());
+                const parsed = JSON.parse(raw || '{}');
+                return (parsed && typeof parsed === 'object') ? parsed : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveSessionTimers(timersObj) {
+            try {
+                localStorage.setItem(getSessionTimersKey(), JSON.stringify(timersObj || {}));
+                if (typeof publishRetainedConfig === 'function') {
+                    publishRetainedConfig('session_timers', timersObj || {});
+                }
+            } catch (e) {}
+        }
+
+        function startUnitSessionTimer(unitKey, unitType = 'table', durationMinutes = 60) {
+            const cleanKey = String(unitKey || '').trim();
+            if (!cleanKey) return;
+            const mins = Math.max(1, Number(durationMinutes) || 60);
+            const timers = loadSessionTimers();
+            timers[cleanKey] = {
+                unit: cleanKey,
+                unitType: unitType === 'room' ? 'room' : 'table',
+                durationMinutes: mins,
+                startedAt: Date.now(),
+                endsAt: Date.now() + mins * 60 * 1000,
+                notifiedExpired: false
+            };
+            saveSessionTimers(timers);
+            renderCustomerSessionTimerBanner();
+            if (state.role === 'staff') {
+                renderWaiterDashboard();
+                if (state.staffSubView === 'dashboard') renderAdminDashboard();
+            }
+            showToast(`تم بدء مؤقت جلسة (${mins} دقيقة) لـ ${formatUnitDisplay(cleanKey, unitType, 'طاولة')}`, 'emerald');
+        }
+
+        function extendUnitSessionTimer(unitKey, addMinutes = 30) {
+            const cleanKey = String(unitKey || '').trim();
+            if (!cleanKey) return;
+            const timers = loadSessionTimers();
+            const current = timers[cleanKey];
+            const now = Date.now();
+            const baseEnd = (current && current.endsAt && current.endsAt > now) ? current.endsAt : now;
+            const addedMs = (Number(addMinutes) || 30) * 60 * 1000;
+            timers[cleanKey] = {
+                unit: cleanKey,
+                unitType: current?.unitType || state.customerUnitType || 'table',
+                durationMinutes: (current?.durationMinutes || 60) + (Number(addMinutes) || 30),
+                startedAt: current?.startedAt || now,
+                endsAt: baseEnd + addedMs,
+                notifiedExpired: false
+            };
+            saveSessionTimers(timers);
+            renderCustomerSessionTimerBanner();
+            if (state.role === 'staff') {
+                renderWaiterDashboard();
+                if (state.staffSubView === 'dashboard') renderAdminDashboard();
+            }
+            showToast(`تم تمديد وقت الجلسة +${addMinutes} دقيقة`, 'emerald');
+        }
+
+        function stopUnitSessionTimer(unitKey) {
+            const cleanKey = String(unitKey || '').trim();
+            if (!cleanKey) return;
+            const timers = loadSessionTimers();
+            if (!timers[cleanKey]) return;
+            delete timers[cleanKey];
+            saveSessionTimers(timers);
+            renderCustomerSessionTimerBanner();
+            if (state.role === 'staff') {
+                renderWaiterDashboard();
+                if (state.staffSubView === 'dashboard') renderAdminDashboard();
+            }
+            showToast(`تم إيقاف مؤقت ${formatUnitDisplay(cleanKey, state.customerUnitType, 'طاولة')}`, 'slate');
+        }
+
+        function formatRemainingDuration(endsAt) {
+            const diffMs = Number(endsAt || 0) - Date.now();
+            const isExpired = diffMs <= 0;
+            const absSec = Math.floor(Math.abs(diffMs) / 1000);
+            const mins = Math.floor(absSec / 60);
+            const secs = absSec % 60;
+            const clock = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            return { isExpired, clock };
+        }
+
+        function renderCustomerSessionTimerBanner() {
+            const banner = document.getElementById('customer-session-timer-banner');
+            const clockEl = document.getElementById('cust-session-timer-clock');
+            const labelEl = document.getElementById('cust-session-timer-label');
+            if (!banner || !clockEl || !labelEl) return;
+
+            if (!state.customerTable) {
+                banner.classList.add('hidden');
+                return;
+            }
+            const timers = loadSessionTimers();
+            const t = timers[String(state.customerTable)];
+            if (!t) {
+                banner.classList.add('hidden');
+                return;
+            }
+            banner.classList.remove('hidden');
+            const { isExpired, clock } = formatRemainingDuration(t.endsAt);
+            if (isExpired) {
+                labelEl.textContent = 'انتهى وقت الجلسة المحدد';
+                clockEl.textContent = `+${clock}`;
+                clockEl.className = 'font-mono text-base font-black text-rose-400';
+            } else {
+                labelEl.textContent = 'الوقت المتبقي للجلسة (PlayStation / الغرفة)';
+                clockEl.textContent = clock;
+                clockEl.className = 'font-mono text-base font-black text-emerald-300';
+            }
+        }
+
+        function startTimerFromWaiterBar() {
+            const unitInput = document.getElementById('timer-unit-input');
+            const kindSelect = document.getElementById('timer-unit-kind');
+            const durSelect = document.getElementById('timer-duration-mins');
+            const unitVal = (unitInput ? unitInput.value : '').trim();
+            if (!unitVal) {
+                showToast('اكتب رقم الطاولة أو اسم الغرفة أولاً', 'slate');
+                if (unitInput) unitInput.focus();
+                return;
+            }
+            const kind = kindSelect ? kindSelect.value : 'table';
+            const mins = durSelect ? Number(durSelect.value) : 60;
+            startUnitSessionTimer(unitVal, kind, mins);
+            if (unitInput) unitInput.value = '';
+        }
+
+        function renderWaiterSessionTimers() {
+            const listEl = document.getElementById('waiter-active-timers-list');
+            if (!listEl) return;
+            const timers = loadSessionTimers();
+            const entries = Object.values(timers);
+
+            entries.forEach((t) => {
+                const { isExpired } = formatRemainingDuration(t.endsAt);
+                if (isExpired && !t.notifiedExpired) {
+                    t.notifiedExpired = true;
+                    saveSessionTimers(timers);
+                    playNotificationChime('new_call');
+                    const uLabel = formatUnitDisplay(t.unit, t.unitType || 'table', 'طاولة');
+                    showToast(`انتهى وقت جلسة ${uLabel}!`, 'amber');
+                    triggerMobileScreenNotification(state.branding?.name || 'Plus Ninety Lounge', `انتهى وقت جلسة ${uLabel}`, `timer-${t.unit}`);
+                }
+            });
+
+            if (entries.length === 0) {
+                listEl.innerHTML = '<span class="text-slate-400">لا توجد مؤقتات جلسات نشطة حالياً</span>';
+                return;
+            }
+
+            listEl.innerHTML = entries.map((t) => {
+                const { isExpired, clock } = formatRemainingDuration(t.endsAt);
+                const uLabel = formatUnitDisplay(t.unit, t.unitType || 'table', 'طاولة');
+                const safeUnit = escapeHTML(String(t.unit)).replace(/'/g, "\'");
+                return `
+                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#121214] border ${isExpired ? 'border-rose-500/60 text-rose-300' : 'border-white/10 text-white'}">
+                        <span class="font-extrabold text-[#f4ebd9]">${escapeHTML(uLabel)}</span>
+                        <span class="font-mono font-black ${isExpired ? 'text-rose-400' : 'text-emerald-300'}">${isExpired ? '+' + clock : clock}</span>
+                        <button type="button" onclick="extendUnitSessionTimer('${safeUnit}', 30)" class="px-2 py-0.5 rounded-lg bg-[#1877f2]/25 hover:bg-[#1877f2]/40 text-[#93c5fd] font-bold text-[11px]">+30د</button>
+                        <button type="button" onclick="stopUnitSessionTimer('${safeUnit}')" class="px-1.5 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 font-bold text-[11px]">✕</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
         function showToast(message, color = 'slate') {
             const container = document.getElementById('toast-container');
             if (!container) return;
@@ -3127,11 +3522,16 @@
         }
 
         setInterval(() => {
-            if (state.role === 'staff' && Object.keys(state.activeCalls).length > 0) {
-                const isAnyAudioPlaying = Array.from(document.querySelectorAll('#waiter-calls-grid audio')).some(a => !a.paused && !a.ended);
-                if (!isAnyAudioPlaying && !activeVoiceRecorder) {
-                    renderWaiterDashboard();
+            if (state.role === 'staff') {
+                renderWaiterSessionTimers();
+                if (Object.keys(state.activeCalls).length > 0) {
+                    const isAnyAudioPlaying = Array.from(document.querySelectorAll('#waiter-calls-grid audio')).some(a => !a.paused && !a.ended);
+                    if (!isAnyAudioPlaying && !activeVoiceRecorder) {
+                        renderWaiterDashboard();
+                    }
                 }
+            } else {
+                renderCustomerSessionTimerBanner();
             }
         }, 1000);
 
@@ -3391,8 +3791,12 @@
             loadDashboardState();
             applyBrandingToUI();
             applyCustomerScreenToUI();
+            renderCustomerSessionTimerBanner();
+            renderWaiterSessionTimers();
             updateAdminBadgeUI();
             applyRoleView(state.role);
+            loadAllFromSupabase();
+            subscribeToSupabaseRealtime();
             initMQTT();
             if (state.role === 'staff' && 'Notification' in window && Notification.permission === 'default') {
                 Notification.requestPermission().catch(() => {});
