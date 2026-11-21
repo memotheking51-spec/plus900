@@ -1,0 +1,28 @@
+{
+  "id": "./",
+  "name": "Plus Ninety Lounge",
+  "short_name": "Plus 90",
+  "description": "نظام استدعاء الويتر الذكي والإدارة لـ Plus Ninety Lounge",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#121214",
+  "theme_color": "#121214",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "./logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
