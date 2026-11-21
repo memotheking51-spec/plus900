@@ -398,6 +398,23 @@
          2. WAITER & STAFF DASHBOARD VIEW
     ====================================================================== -->
     <main id="view-waiter" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+
+    <!-- Branch Selector Bar inside Staff & Admin View -->
+    <div id="branch-switcher-bar" class="bg-[#1b1b1f] border border-[#1877f2]/30 rounded-2xl p-3.5 mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2.5">
+            <span class="inline-flex items-center gap-1.5 text-xs font-black text-[#93c5fd] bg-[#1877f2]/15 border border-[#1877f2]/30 px-3 py-1.5 rounded-xl">
+                <i class="fa-solid fa-code-branch"></i>
+                <span>الفرع الحالي:</span>
+            </span>
+            <select id="staff-branch-select" onchange="onStaffBranchChange()" class="bg-[#121214] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-extrabold focus:outline-none focus:border-[#1877f2]"></select>
+            <span id="staff-branch-subtitle" class="text-xs text-slate-400">بيانات وطلبات ونداءات مستقلة تماماً</span>
+        </div>
+        <button id="btn-manage-branches" type="button" onclick="openBranchesManagerModal()" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-[#f4ebd9] font-extrabold text-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-sliders text-[#60a5fa]"></i>
+            <span>إدارة الفروع (أدمن)</span>
+        </button>
+    </div>
+
         <div class="flex flex-wrap items-center justify-between gap-3 mb-5 bg-[#1b1b1f] p-2.5 rounded-2xl border border-white/10">
             <div class="flex items-center gap-2">
                 <button id="tab-waiter-calls" onclick="switchStaffSubView('calls')" class="px-4 py-2 rounded-xl bg-[#1877f2] text-white font-extrabold text-xs sm:text-sm transition flex items-center gap-2">
@@ -889,7 +906,11 @@
                     <p class="text-xs text-slate-400">فصل كامل بين QR الطاولات و QR الغرف (Room) — يُضاف يدوياً بواسطة الأدمن</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
+                    
+                    <label class="text-xs font-bold text-slate-300">الفرع:</label>
+                    <select id="qr-branch-select" onchange="onQRBranchChange()" class="bg-[#121214] border border-white/15 rounded-xl px-2.5 py-1.5 font-bold text-xs sm:text-sm text-[#93c5fd] focus:outline-none focus:border-[#1877f2]"></select>
                     <label class="text-xs font-bold text-slate-300">القناة / القسم:</label>
+
                     <select id="qr-room-select" onchange="onQRRoomChange()" class="bg-[#121214] border border-white/15 rounded-xl px-2.5 py-1.5 font-bold text-xs sm:text-sm text-[#f4ebd9] focus:outline-none focus:border-[#1877f2]">
                         <option value="plus-ninety-lounge">القاعة الرئيسية (Plus 90)</option>
                         <option value="room-1">غرفة 1 (Room 1)</option>
@@ -984,6 +1005,59 @@
                 </button>
                 <button onclick="closeSettingsModal()" class="px-4 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-200 font-bold text-sm transition">
                     إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 4. Admin Branches Manager Modal (Add / Edit / Delete Branches) -->
+    <div id="branches-manager-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1b1b1f] text-white border border-[#1877f2]/40 rounded-3xl max-w-2xl w-full p-6 shadow-2xl animate-slide-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="font-black text-lg text-white">إدارة الفروع وتعديل الأسماء (أدمن)</h3>
+                    <p class="text-xs text-slate-400">كل فرع منفصل تماماً في النداءات والطلبات والمؤقتات والـ QR والـ MQTT</p>
+                </div>
+                <button onclick="closeBranchesManagerModal()" class="w-8 h-8 rounded-full hover:bg-white/10 text-slate-400 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Add New Branch Form -->
+            <div class="bg-[#121214] border border-white/10 rounded-2xl p-4 mb-5 space-y-3 text-xs">
+                <div class="font-extrabold text-[#93c5fd]">إضافة فرع جديد</div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">اسم الفرع</label>
+                        <input id="new-branch-name" type="text" placeholder="مثال: Miami Branch" class="w-full bg-[#1b1b1f] text-white border border-white/15 rounded-xl px-3 py-2 font-bold">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">معرف الفرع (Slug / ID)</label>
+                        <input id="new-branch-slug" type="text" dir="ltr" placeholder="مثال: miami-branch" class="w-full bg-[#1b1b1f] text-white border border-white/15 rounded-xl px-3 py-2 font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">باسورد ويتر الفرع (اختياري)</label>
+                        <input id="new-branch-pin" type="text" dir="ltr" placeholder="افتراضي: باسورد الويتر" class="w-full bg-[#1b1b1f] text-white border border-white/15 rounded-xl px-3 py-2 font-mono">
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" onclick="addNewBranchByAdmin()" class="px-4 py-2.5 rounded-xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold text-xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>إضافة الفرع وحفظه</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Existing Branches List -->
+            <div class="space-y-2.5" id="branches-admin-list"></div>
+
+            <div class="flex justify-between items-center gap-2 mt-6 pt-4 border-t border-white/10">
+                <button type="button" onclick="resetBranchesToScreenshotDefaults()" class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-amber-300 font-bold text-xs transition">
+                    استعادة الفروع الـ 7 الأساسية
+                </button>
+                <button type="button" onclick="closeBranchesManagerModal()" class="px-5 py-2.5 rounded-xl bg-[#1877f2] hover:bg-blue-500 text-white font-extrabold text-xs transition">
+                    تم
                 </button>
             </div>
         </div>
@@ -1092,8 +1166,9 @@
                 const icon192 = buildAppIconCanvasDataUrl(logoText, 192);
                 const icon512 = buildAppIconCanvasDataUrl(logoText, 512);
                 const iconMime = icon512.startsWith('data:image/png') ? 'image/png' : 'image/svg+xml';
+                const branchQuery = encodeURIComponent(state.branchId || 'dokki-branch');
                 const roomQuery = encodeURIComponent(defaultRoomId);
-                const startUrl = `./?role=staff&room=${roomQuery}`;
+                const startUrl = `./?role=staff&branch=${branchQuery}&room=${roomQuery}`;
 
                 const manifestObj = {
                     id: './?app=plus90-lounge',
@@ -1312,20 +1387,22 @@
             const enteredPin = document.getElementById('staff-pin-input').value.trim();
             const errorEl = document.getElementById('staff-pin-error');
 
+            const activeBranchObj = getBranchById(state.branchId);
+            const effectiveWaiterPin = (activeBranchObj && activeBranchObj.waiterPin) ? activeBranchObj.waiterPin : state.waiterPin;
             if (enteredPin === state.adminPin) {
                 state.staffLevel = 'admin';
                 closeStaffLoginModal();
-                const staffUrl = `${window.location.pathname}?role=staff&room=${encodeURIComponent(defaultRoomId)}`;
+                const staffUrl = `${window.location.pathname}?role=staff&branch=${encodeURIComponent(state.branchId)}&room=${encodeURIComponent(defaultRoomId)}`;
                 window.history.replaceState({}, '', staffUrl);
                 applyRoleView('staff');
-                showToast('تم تسجيل الدخول بصلاحية الأدمن (تعديل اللوجو واللينك متاح)', 'emerald');
-            } else if (enteredPin === state.waiterPin) {
+                showToast(`تم تسجيل الدخول بصلاحية الأدمن (${activeBranchObj.name})`, 'emerald');
+            } else if (enteredPin === effectiveWaiterPin || enteredPin === state.waiterPin) {
                 state.staffLevel = 'waiter';
                 closeStaffLoginModal();
-                const staffUrl = `${window.location.pathname}?role=staff&room=${encodeURIComponent(defaultRoomId)}`;
+                const staffUrl = `${window.location.pathname}?role=staff&branch=${encodeURIComponent(state.branchId)}&room=${encodeURIComponent(defaultRoomId)}`;
                 window.history.replaceState({}, '', staffUrl);
                 applyRoleView('staff');
-                showToast('تم تسجيل الدخول إلى بوابة الويتر', 'emerald');
+                showToast(`تم تسجيل الدخول إلى بوابة الويتر • ${activeBranchObj.name}`, 'emerald');
             } else {
                 errorEl.classList.remove('hidden');
             }
@@ -1373,7 +1450,7 @@
         const DASHBOARD_STORAGE_KEY_PREFIX = 'plus90_dashboard_state_';
 
         function getDashboardStorageKey() {
-            return `${DASHBOARD_STORAGE_KEY_PREFIX}${state.roomId || 'default'}`;
+            return `${DASHBOARD_STORAGE_KEY_PREFIX}${state.branchId || 'dokki-branch'}_${state.roomId || 'default'}`;
         }
 
         function saveDashboardState() {
@@ -2113,7 +2190,7 @@
 
                 const previewLink = document.getElementById('link-open-customer-tab');
                 if (previewLink) {
-                    previewLink.href = `${window.location.pathname}?table=1&room=${encodeURIComponent(state.roomId)}`;
+                    previewLink.href = `${window.location.pathname}?branch=${encodeURIComponent(state.branchId)}&table=1&room=${encodeURIComponent(state.roomId)}`;
                 }
                 const channelEl = document.getElementById('stat-channel');
                 if (channelEl) channelEl.textContent = state.roomId;
@@ -2200,7 +2277,7 @@
 
         try {
             if ('BroadcastChannel' in window) {
-                localChannel = new BroadcastChannel(`nidaa_sync_${state.roomId}`);
+                localChannel = new BroadcastChannel(`nidaa_sync_${state.branchId || 'dokki-branch'}_${state.roomId}`);
                 localChannel.onmessage = (event) => {
                     if (!event.data) return;
                     if (event.data.action === 'CONFIG_SYNC') {
@@ -2336,7 +2413,8 @@
         async function upsertCloudState(stateKey, payloadData, isGlobal = false) {
             const sb = initSupabaseClient();
             if (!sb) return;
-            const targetRoom = isGlobal ? 'global' : (state.roomId || 'plus-ninety-lounge');
+            const branchScope = state.branchId || 'dokki-branch';
+            const targetRoom = isGlobal ? 'global' : `${branchScope}__${state.roomId || 'plus-ninety-lounge'}`;
             const rowId = `${targetRoom}:${stateKey}`;
             const envelope = {
                 senderId: SYNC_SENDER_ID,
@@ -2439,7 +2517,7 @@
         async function loadAllFromSupabase() {
             const sb = initSupabaseClient();
             if (!sb) return;
-            const currentRoom = state.roomId || 'plus-ninety-lounge';
+            const currentRoom = `${state.branchId || 'dokki-branch'}__${state.roomId || 'plus-ninety-lounge'}`;
             try {
                 const { data, error } = await sb
                     .from(SUPABASE_CONFIG.table)
@@ -2556,6 +2634,12 @@
                 } catch (e) {}
                 renderCustomerSessionTimerBanner();
                 if (state.role === 'staff') renderWaiterSessionTimers();
+            } else if (key === 'branches' && Array.isArray(envelope.data)) {
+                const localTs = Number(localStorage.getItem('plus90_branches_ts') || 0);
+                if (remoteTs && localTs && remoteTs <= localTs) return;
+                saveBranchesList(envelope.data, false);
+                try { if (remoteTs) localStorage.setItem('plus90_branches_ts', String(remoteTs)); } catch (e) {}
+                showToast('تم تحديث قائمة وأسماء الفروع تلقائياً من الإدارة', 'emerald');
             }
         }
 
@@ -3000,11 +3084,12 @@
         function buildManualQRUrl(label, kind, roomId) {
             const baseUrl = window.location.origin + window.location.pathname;
             const cleanLabel = String(label || '').trim();
+            const branchParam = encodeURIComponent(state.branchId || 'dokki-branch');
             if (kind === 'room') {
-                return `${baseUrl}?table=${encodeURIComponent(cleanLabel)}&unit=room&room=${encodeURIComponent(roomId)}`;
+                return `${baseUrl}?branch=${branchParam}&table=${encodeURIComponent(cleanLabel)}&unit=room&room=${encodeURIComponent(roomId)}`;
             }
             const numericMatch = cleanLabel.match(/^\d+$/) ? cleanLabel : encodeURIComponent(cleanLabel);
-            return `${baseUrl}?table=${numericMatch}&room=${encodeURIComponent(roomId)}`;
+            return `${baseUrl}?branch=${branchParam}&table=${numericMatch}&room=${encodeURIComponent(roomId)}`;
         }
 
         function formatManualQRCardTitle(label, kind) {
@@ -3047,7 +3132,7 @@
             if (!roomSelect) return;
             state.roomId = roomSelect.value;
             localStorage.setItem('nidaa_room_id', state.roomId);
-            state.baseTopic = `nidaa/restaurant/${state.roomId}`;
+            state.baseTopic = computeBranchBaseTopic(state.branchId, state.roomId);
             localStorage.setItem('nidaa_topic', state.baseTopic);
 
             const kindSelect = document.getElementById('manual-qr-kind-select');
@@ -3291,7 +3376,7 @@
         const SESSION_TIMERS_KEY_PREFIX = 'plus90_session_timers_';
 
         function getSessionTimersKey() {
-            return `${SESSION_TIMERS_KEY_PREFIX}${state.roomId || 'default'}`;
+            return `${SESSION_TIMERS_KEY_PREFIX}${state.branchId || 'dokki-branch'}_${state.roomId || 'default'}`;
         }
 
         function loadSessionTimers() {
@@ -3765,7 +3850,351 @@
             showToast(`تم إرسال الرد الصوتي إلى ${formatUnitDisplay(key, unitType, 'طاولة')}`, 'emerald');
         }
 
+
+        // =====================================================================
+        // MULTI-BRANCH ISOLATION & ADMIN MANAGEMENT ENGINE
+        // =====================================================================
+        const DEFAULT_BRANCHES = [
+            { id: 'dokki-branch', name: 'Dokki Branch', waiterPin: '' },
+            { id: 'smouha-branch', name: 'Smouha Branch', waiterPin: '' },
+            { id: 'sidi-gaber-branch', name: 'Sidi Gaber Branch', waiterPin: '' },
+            { id: 'elsaraya-branch', name: 'ElSaraya Branch', waiterPin: '' },
+            { id: 'sidi-beshr-el-tram-branch', name: 'Sidi Beshr El-Tram Branch', waiterPin: '' },
+            { id: 'khalid-ebn-elwalid-branch', name: 'Khalid Ebn ElWalid Branch', waiterPin: '' },
+            { id: 'gamal-abd-elnasser-branch', name: 'Gamal Abd ElNasser Branch', waiterPin: '' }
+        ];
+
+        function slugifyBranchId(raw, fallbackIdx = 1) {
+            const cleaned = String(raw || '')
+                .toLowerCase()
+                .trim()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            return cleaned || `branch-${fallbackIdx}`;
+        }
+
+        function normalizeBranchesList(rawList) {
+            const list = Array.isArray(rawList) && rawList.length > 0 ? rawList : DEFAULT_BRANCHES;
+            const seen = new Set();
+            const out = [];
+            list.forEach((b, i) => {
+                if (!b) return;
+                const name = String(b.name || b.id || `Branch ${i + 1}`).trim() || `Branch ${i + 1}`;
+                let id = slugifyBranchId(b.id || name, i + 1);
+                if (seen.has(id)) {
+                    id = `${id}-${i + 1}`;
+                }
+                seen.add(id);
+                out.push({
+                    id,
+                    name,
+                    waiterPin: String(b.waiterPin || '').trim()
+                });
+            });
+            return out.length > 0 ? out : [...DEFAULT_BRANCHES];
+        }
+
+        function loadBranchesList() {
+            try {
+                const raw = localStorage.getItem('plus90_branches_list');
+                if (!raw) return [...DEFAULT_BRANCHES];
+                return normalizeBranchesList(JSON.parse(raw));
+            } catch (e) {
+                return [...DEFAULT_BRANCHES];
+            }
+        }
+
+        function saveBranchesList(list, shouldSync = true) {
+            const normalized = normalizeBranchesList(list);
+            state.branches = normalized;
+            try {
+                localStorage.setItem('plus90_branches_list', JSON.stringify(normalized));
+                localStorage.setItem('plus90_branches_ts', String(Date.now()));
+            } catch (e) {}
+            if (shouldSync && typeof publishRetainedConfig === 'function') {
+                publishRetainedConfig('branches', normalized);
+            }
+            populateBranchSelectors();
+        }
+
+        function getBranchById(branchId) {
+            const list = state.branches && state.branches.length ? state.branches : loadBranchesList();
+            return list.find(b => b.id === branchId) || list[0] || DEFAULT_BRANCHES[0];
+        }
+
+        function computeBranchBaseTopic(branchId, roomId) {
+            const basePrefix = (localStorage.getItem('nidaa_topic_prefix') || 'nidaa/restaurant').replace(/\/+$/, '');
+            return `${basePrefix}/${branchId}/${roomId}`;
+        }
+
+        const rawBranchParam = (urlParams.get('branch') || hashParams.get('branch') || '').trim();
+        state.branches = loadBranchesList();
+        const initialBranchObj = rawBranchParam
+            ? (state.branches.find(b => b.id === slugifyBranchId(rawBranchParam)) || state.branches[0])
+            : state.branches[0];
+        state.branchId = initialBranchObj ? initialBranchObj.id : DEFAULT_BRANCHES[0].id;
+        localStorage.setItem('plus90_active_branch', state.branchId);
+        state.baseTopic = computeBranchBaseTopic(state.branchId, state.roomId);
+        localStorage.setItem('nidaa_topic', state.baseTopic);
+
+        if (localChannel) {
+            try { localChannel.close(); } catch (e) {}
+        }
+        if ('BroadcastChannel' in window) {
+            localChannel = new BroadcastChannel(`nidaa_sync_${state.branchId}_${state.roomId}`);
+            localChannel.onmessage = (event) => {
+                if (!event.data) return;
+                if (event.data.action === 'CONFIG_SYNC') {
+                    handleIncomingConfigSync('', event.data);
+                    return;
+                }
+                handleIncomingEvent(event.data);
+            };
+        }
+
+        function populateBranchSelectors() {
+            const list = state.branches && state.branches.length ? state.branches : loadBranchesList();
+            const staffSel = document.getElementById('staff-branch-select');
+            const qrSel = document.getElementById('qr-branch-select');
+            const subEl = document.getElementById('staff-branch-subtitle');
+
+            [staffSel, qrSel].forEach((sel) => {
+                if (!sel) return;
+                sel.innerHTML = '';
+                list.forEach((b) => {
+                    const opt = document.createElement('option');
+                    opt.value = b.id;
+                    opt.textContent = b.name;
+                    sel.appendChild(opt);
+                });
+                if (list.some(b => b.id === state.branchId)) {
+                    sel.value = state.branchId;
+                }
+            });
+
+            const activeBranch = getBranchById(state.branchId);
+            if (subEl && activeBranch) {
+                subEl.textContent = `${activeBranch.name} • قناة مستقلة: ${activeBranch.id}`;
+            }
+        }
+
+        function switchActiveBranch(newBranchId, syncUrl = true) {
+            const target = getBranchById(newBranchId);
+            if (!target) return;
+            state.branchId = target.id;
+            localStorage.setItem('plus90_active_branch', state.branchId);
+            state.baseTopic = computeBranchBaseTopic(state.branchId, state.roomId);
+            localStorage.setItem('nidaa_topic', state.baseTopic);
+
+            // Reset in-memory call state before loading isolated branch data
+            state.activeCalls = {};
+            state.completedCount = 0;
+            state.totalRecordedCount = 0;
+            state.serviceCounts = {
+                call_waiter: 0,
+                request_bill: 0,
+                request_menu: 0,
+                clean_table: 0,
+                custom_note: 0
+            };
+            state.callHistory = [];
+
+            if (localChannel) {
+                try { localChannel.close(); } catch (e) {}
+            }
+            if ('BroadcastChannel' in window) {
+                localChannel = new BroadcastChannel(`nidaa_sync_${state.branchId}_${state.roomId}`);
+                localChannel.onmessage = (event) => {
+                    if (!event.data) return;
+                    if (event.data.action === 'CONFIG_SYNC') {
+                        handleIncomingConfigSync('', event.data);
+                        return;
+                    }
+                    handleIncomingEvent(event.data);
+                };
+            }
+
+            if (syncUrl) {
+                const params = new URLSearchParams(window.location.search);
+                params.set('branch', state.branchId);
+                if (state.role === 'staff') {
+                    params.set('role', 'staff');
+                }
+                if (state.roomId) {
+                    params.set('room', state.roomId);
+                }
+                window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+            }
+
+            populateBranchSelectors();
+            loadDashboardState();
+            renderCustomerSessionTimerBanner();
+            renderWaiterSessionTimers();
+            loadAllFromSupabase();
+            subscribeToSupabaseRealtime();
+            initMQTT();
+
+            const previewLink = document.getElementById('link-open-customer-tab');
+            if (previewLink) {
+                previewLink.href = `${window.location.pathname}?branch=${encodeURIComponent(state.branchId)}&table=1&room=${encodeURIComponent(state.roomId)}`;
+            }
+
+            if (state.role === 'staff') {
+                renderWaiterDashboard();
+                if (state.staffSubView === 'dashboard') renderAdminDashboard();
+            } else {
+                renderCustomerTableState();
+                renderCustomerActiveStatus();
+            }
+        }
+
+        function onStaffBranchChange() {
+            const sel = document.getElementById('staff-branch-select');
+            if (!sel) return;
+            switchActiveBranch(sel.value, true);
+            showToast(`تم الانتقال إلى ${getBranchById(state.branchId).name}`, 'emerald');
+        }
+
+        function onQRBranchChange() {
+            const sel = document.getElementById('qr-branch-select');
+            if (!sel) return;
+            switchActiveBranch(sel.value, true);
+            generateQRCards();
+            showToast(`تم اختيار ${getBranchById(state.branchId).name} لتوليد QR`, 'amber');
+        }
+
+        function openBranchesManagerModal() {
+            requireAdminPin(() => {
+                renderBranchesAdminList();
+                document.getElementById('branches-manager-modal').classList.remove('hidden');
+            });
+        }
+
+        function closeBranchesManagerModal() {
+            document.getElementById('branches-manager-modal').classList.add('hidden');
+        }
+
+        function renderBranchesAdminList() {
+            const container = document.getElementById('branches-admin-list');
+            if (!container) return;
+            const list = state.branches && state.branches.length ? state.branches : loadBranchesList();
+
+            container.innerHTML = list.map((b, idx) => {
+                const isCurrent = b.id === state.branchId;
+                return `
+                    <div class="bg-[#121214] border ${isCurrent ? 'border-[#1877f2]' : 'border-white/10'} rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] text-slate-400 mb-1">اسم الفرع</label>
+                                <input id="edit-branch-name-${idx}" type="text" value="${escapeHTML(b.name)}" class="w-full bg-[#1b1b1f] text-white border border-white/15 rounded-xl px-3 py-1.5 font-bold">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] text-slate-400 mb-1">باسورد ويتر الفرع (اختياري)</label>
+                                <input id="edit-branch-pin-${idx}" type="text" dir="ltr" value="${escapeHTML(b.waiterPin || '')}" placeholder="يستخدم باسورد الويتر العام إذا تُرك فارغاً" class="w-full bg-[#1b1b1f] text-white border border-white/15 rounded-xl px-3 py-1.5 font-mono">
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button type="button" onclick="saveBranchRowEdit(${idx})" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold transition">
+                                حفظ الاسم
+                            </button>
+                            <button type="button" onclick="switchActiveBranch('${escapeHTML(b.id)}', true); renderBranchesAdminList();" class="px-3 py-2 rounded-xl ${isCurrent ? 'bg-[#1877f2] text-white' : 'bg-white/10 hover:bg-white/15 text-[#93c5fd]'} font-bold transition">
+                                ${isCurrent ? 'الفرع النشط' : 'تفعيل'}
+                            </button>
+                            ${list.length > 1 ? `
+                                <button type="button" onclick="deleteBranchRow(${idx})" class="px-2.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 font-bold transition" title="حذف الفرع">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addNewBranchByAdmin() {
+            requireAdminPin(() => {
+                const nameInput = document.getElementById('new-branch-name');
+                const slugInput = document.getElementById('new-branch-slug');
+                const pinInput = document.getElementById('new-branch-pin');
+                const name = (nameInput ? nameInput.value : '').trim();
+                if (!name) {
+                    showToast('يرجى كتابة اسم الفرع الجديد أولاً', 'slate');
+                    if (nameInput) nameInput.focus();
+                    return;
+                }
+                const currentList = state.branches && state.branches.length ? state.branches : loadBranchesList();
+                const requestedSlug = (slugInput ? slugInput.value : '').trim();
+                let newId = slugifyBranchId(requestedSlug || name, currentList.length + 1);
+                if (currentList.some(b => b.id === newId)) {
+                    newId = `${newId}-${Date.now().toString().slice(-3)}`;
+                }
+                const updated = [
+                    ...currentList,
+                    {
+                        id: newId,
+                        name,
+                        waiterPin: (pinInput ? pinInput.value : '').trim()
+                    }
+                ];
+                saveBranchesList(updated, true);
+                if (nameInput) nameInput.value = '';
+                if (slugInput) slugInput.value = '';
+                if (pinInput) pinInput.value = '';
+                renderBranchesAdminList();
+                showToast(`تمت إضافة الفرع "${name}" بنجاح`, 'emerald');
+            });
+        }
+
+        function saveBranchRowEdit(idx) {
+            requireAdminPin(() => {
+                const currentList = [...(state.branches && state.branches.length ? state.branches : loadBranchesList())];
+                if (!currentList[idx]) return;
+                const nameEl = document.getElementById(`edit-branch-name-${idx}`);
+                const pinEl = document.getElementById(`edit-branch-pin-${idx}`);
+                const nextName = (nameEl ? nameEl.value : '').trim();
+                if (!nextName) {
+                    showToast('اسم الفرع لا يمكن أن يكون فارغاً', 'slate');
+                    return;
+                }
+                currentList[idx] = {
+                    ...currentList[idx],
+                    name: nextName,
+                    waiterPin: (pinEl ? pinEl.value : '').trim()
+                };
+                saveBranchesList(currentList, true);
+                renderBranchesAdminList();
+                showToast(`تم تحديث اسم الفرع إلى "${nextName}"`, 'emerald');
+            });
+        }
+
+        function deleteBranchRow(idx) {
+            requireAdminPin(() => {
+                const currentList = [...(state.branches && state.branches.length ? state.branches : loadBranchesList())];
+                if (currentList.length <= 1 || !currentList[idx]) return;
+                const removed = currentList[idx];
+                const nextList = currentList.filter((_, i) => i !== idx);
+                saveBranchesList(nextList, true);
+                if (state.branchId === removed.id) {
+                    switchActiveBranch(nextList[0].id, true);
+                }
+                renderBranchesAdminList();
+                showToast(`تم حذف الفرع "${removed.name}"`, 'amber');
+            });
+        }
+
+        function resetBranchesToScreenshotDefaults() {
+            requireAdminPin(() => {
+                saveBranchesList(DEFAULT_BRANCHES, true);
+                if (!state.branches.some(b => b.id === state.branchId)) {
+                    switchActiveBranch(DEFAULT_BRANCHES[0].id, true);
+                }
+                renderBranchesAdminList();
+                showToast('تمت استعادة الفروع الـ 7 الأساسية', 'amber');
+            });
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
+            populateBranchSelectors();
             loadDashboardState();
             applyBrandingToUI();
             applyCustomerScreenToUI();
