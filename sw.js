@@ -1,4 +1,4 @@
-const CACHE_NAME = 'plus90-lounge-v8';
+const CACHE_NAME = 'plus90-lounge-v9-branches';
 const CORE_ASSETS = [
   './',
   './index.html',
