@@ -1,7 +1,16 @@
-const CACHE_NAME = 'plus90-lounge-v7';
+const CACHE_NAME = 'plus90-lounge-v8';
+const CORE_ASSETS = [
+  './',
+  './index.html',
+  './manifest.json'
+];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(CORE_ASSETS).catch(() => {}))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -22,6 +31,21 @@ self.addEventListener('fetch', (event) => {
   const reqUrl = new URL(event.request.url);
   if (reqUrl.origin !== self.location.origin) return;
 
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', clone)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((matched) => matched || caches.match('./index.html') || caches.match('./')))
+    );
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -35,9 +59,39 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+self.addEventListener('push', (event) => {
+  let payload = {
+    title: 'Plus Ninety Lounge',
+    body: 'تنبيه جديد من نظام استدعاء النادل',
+    url: './?role=staff',
+    tag: 'plus90-push'
+  };
+  try {
+    if (event.data) {
+      const parsed = event.data.json();
+      payload = { ...payload, ...parsed };
+    }
+  } catch (e) {
+    if (event.data) {
+      payload.body = event.data.text() || payload.body;
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      tag: payload.tag,
+      renotify: true,
+      dir: 'rtl',
+      lang: 'ar',
+      data: { url: payload.url }
+    })
+  );
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = './?role=staff';
+  const targetUrl = (event.notification && event.notification.data && event.notification.data.url) || './?role=staff';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
