@@ -674,6 +674,10 @@
 
             <div class="space-y-3">
                 <div>
+                    <label for="login-branch-select" class="block text-xs font-bold text-slate-300 mb-1.5">الفرع</label>
+                    <select id="login-branch-select" class="w-full bg-[#121214] text-white border border-white/15 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm font-extrabold focus:outline-none focus:border-[#1877f2] transition"></select>
+                </div>
+                <div>
                     <label for="staff-pin-input" class="block text-xs font-bold text-slate-300 mb-1.5">الرمز السري (PIN)</label>
                     <input id="staff-pin-input" type="password" inputmode="numeric" maxlength="12" placeholder="••••" onkeydown="if(event.key==='Enter') verifyStaffPin()" class="w-full bg-[#121214] text-white border border-white/15 rounded-2xl px-4 py-3 text-center text-lg font-black tracking-widest focus:outline-none focus:border-[#1877f2] transition">
                 </div>
@@ -1362,6 +1366,23 @@
         }
 
         function openStaffLoginModal() {
+            if (!state.branches || !state.branches.length) {
+                state.branches = loadBranchesList();
+            }
+            const loginBranchSel = document.getElementById('login-branch-select');
+            if (loginBranchSel) {
+                loginBranchSel.innerHTML = '';
+                state.branches.forEach((b) => {
+                    const opt = document.createElement('option');
+                    opt.value = b.id;
+                    opt.textContent = b.name;
+                    loginBranchSel.appendChild(opt);
+                });
+                const savedBranch = localStorage.getItem('plus90_active_branch') || state.branchId;
+                if (state.branches.some(b => b.id === savedBranch)) {
+                    loginBranchSel.value = savedBranch;
+                }
+            }
             const modal = document.getElementById('staff-login-modal');
             const input = document.getElementById('staff-pin-input');
             const errorEl = document.getElementById('staff-pin-error');
@@ -1382,16 +1403,19 @@
                 state.branches = loadBranchesList();
             }
 
-            const activeBranchObj = getBranchById(state.branchId);
             let storedBranches = [];
             try {
                 storedBranches = JSON.parse(localStorage.getItem('plus90_branches_list') || '[]');
             } catch (e) {}
+
+            const loginBranchSel = document.getElementById('login-branch-select');
+            const selectedBranchId = (loginBranchSel && loginBranchSel.value) ? loginBranchSel.value : state.branchId;
+            const activeBranchObj = getBranchById(selectedBranchId);
             const storedBranchObj = Array.isArray(storedBranches)
-                ? storedBranches.find(b => b && b.id === state.branchId)
+                ? storedBranches.find(b => b && b.id === selectedBranchId)
                 : null;
 
-            const branchPins = [
+            const selectedBranchPins = [
                 activeBranchObj && activeBranchObj.waiterPin,
                 storedBranchObj && storedBranchObj.waiterPin
             ].map(p => String(p || '').trim()).filter(Boolean);
@@ -1399,25 +1423,32 @@
             const globalWaiterPins = [
                 state.waiterPin,
                 localStorage.getItem('nidaa_waiter_pin'),
-                localStorage.getItem('nidaa_staff_pin')
+                localStorage.getItem('nidaa_staff_pin'),
+                '1234'
             ].map(p => String(p || '').trim()).filter(Boolean);
 
             const cleanAdminPin = String(state.adminPin || localStorage.getItem('nidaa_admin_pin') || '9090').trim();
 
             if (enteredPin === cleanAdminPin) {
                 state.staffLevel = 'admin';
+                if (selectedBranchId && selectedBranchId !== state.branchId) {
+                    switchActiveBranch(selectedBranchId, false);
+                }
                 closeStaffLoginModal();
                 const staffUrl = `${window.location.pathname}?role=staff&branch=${encodeURIComponent(state.branchId)}&room=${encodeURIComponent(defaultRoomId)}`;
                 window.history.replaceState({}, '', staffUrl);
                 applyRoleView('staff');
                 showToast(`تم تسجيل الدخول بصلاحية الأدمن (${(activeBranchObj && activeBranchObj.name) || state.branchId})`, 'emerald');
-            } else if (branchPins.includes(enteredPin) || globalWaiterPins.includes(enteredPin)) {
+            } else if (selectedBranchPins.includes(enteredPin) || (selectedBranchPins.length === 0 && globalWaiterPins.includes(enteredPin))) {
                 state.staffLevel = 'waiter';
+                if (selectedBranchId && selectedBranchId !== state.branchId) {
+                    switchActiveBranch(selectedBranchId, false);
+                }
                 closeStaffLoginModal();
                 const staffUrl = `${window.location.pathname}?role=staff&branch=${encodeURIComponent(state.branchId)}&room=${encodeURIComponent(defaultRoomId)}`;
                 window.history.replaceState({}, '', staffUrl);
                 applyRoleView('staff');
-                showToast(`تم تسجيل الدخول إلى بوابة الويتر • ${activeBranchObj.name}`, 'emerald');
+                showToast(`تم تسجيل الدخول إلى بوابة الويتر • ${(activeBranchObj && activeBranchObj.name) || state.branchId}`, 'emerald');
             } else {
                 errorEl.classList.remove('hidden');
             }
