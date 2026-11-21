@@ -4235,6 +4235,25 @@
             });
         }
 
+        
+        window.addEventListener('online', () => {
+            showToast('عادت الشبكة، جاري إعادة مزامنة الاتصال المباشر...', 'emerald');
+            if (!state.mqttConnected) {
+                initMQTT();
+            }
+            loadAllFromSupabase();
+            subscribeToSupabaseRealtime();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (mqttClient && !mqttClient.connected) {
+                    try { mqttClient.reconnect(); } catch (e) { initMQTT(); }
+                }
+                loadAllFromSupabase();
+            }
+        });
+
         window.addEventListener('DOMContentLoaded', () => {
             populateBranchSelectors();
             loadDashboardState();
